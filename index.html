@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Snake Odyssey</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='28'%3E%F0%9F%90%8D%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+  <canvas id="game-canvas"></canvas>
+
+  <!-- In-game HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-row">
+      <div class="hud-item">
+        <span class="hud-icon" id="hud-skin-icon">●</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Score</span>
+        <span class="hud-value" id="hud-score">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Length</span>
+        <span class="hud-value" id="hud-length">3</span>
+      </div>
+      <div class="hud-item" id="hud-objective-wrap">
+        <span class="hud-label" id="hud-objective-label">Objective</span>
+        <span class="hud-value" id="hud-objective">0 / 10</span>
+      </div>
+      <div class="hud-item" id="hud-powerup-wrap" style="display:none;">
+        <span class="hud-icon" id="hud-powerup-icon">🛡</span>
+        <span class="hud-value" id="hud-powerup-timer">0s</span>
+      </div>
+      <button id="hud-pause-btn" class="icon-btn" data-action="toggle-pause" aria-label="Pause">⏸</button>
+    </div>
+  </div>
+
+  <!-- On-screen D-pad (touch) -->
+  <div id="dpad" class="hidden">
+    <button class="dpad-btn dpad-up" data-dpad="UP" aria-label="Up">▲</button>
+    <button class="dpad-btn dpad-left" data-dpad="LEFT" aria-label="Left">◀</button>
+    <button class="dpad-btn dpad-right" data-dpad="RIGHT" aria-label="Right">▶</button>
+    <button class="dpad-btn dpad-down" data-dpad="DOWN" aria-label="Down">▼</button>
+  </div>
+
+  <!-- Main Menu -->
+  <div id="screen-menu" class="screen">
+    <div class="panel panel-menu">
+      <h1 class="title">🐍 Snake Odyssey</h1>
+      <p class="subtitle">Grow long. Explore worlds. Unlock legends.</p>
+      <div class="menu-buttons">
+        <button class="btn btn-primary" data-action="play-classic">Play Classic</button>
+        <button class="btn" data-nav="screen-level-select">Level Select</button>
+        <button class="btn" data-nav="screen-snake-select">Snake Select</button>
+        <button class="btn" data-nav="screen-high-scores">High Scores</button>
+        <button class="btn" data-nav="screen-settings">Settings</button>
+        <button class="btn" data-nav="screen-how-to-play">How to Play</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Level Select -->
+  <div id="screen-level-select" class="screen hidden">
+    <div class="panel">
+      <h2>Level Select</h2>
+      <div id="level-list" class="card-list"></div>
+      <button class="btn btn-back" data-nav="screen-menu">Back</button>
+    </div>
+  </div>
+
+  <!-- Snake Select -->
+  <div id="screen-snake-select" class="screen hidden">
+    <div class="panel">
+      <h2>Snake Select</h2>
+      <div id="snake-list" class="card-list"></div>
+      <button class="btn btn-back" data-nav="screen-menu">Back</button>
+    </div>
+  </div>
+
+  <!-- High Scores -->
+  <div id="screen-high-scores" class="screen hidden">
+    <div class="panel">
+      <h2>High Scores</h2>
+      <div id="high-score-list" class="card-list"></div>
+      <button class="btn btn-back" data-nav="screen-menu">Back</button>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div id="screen-settings" class="screen hidden">
+    <div class="panel">
+      <h2>Settings</h2>
+      <div class="settings-list">
+        <label class="settings-row">
+          <span>Music</span>
+          <input type="checkbox" id="setting-music">
+        </label>
+        <label class="settings-row">
+          <span>Sound Effects</span>
+          <input type="checkbox" id="setting-sfx">
+        </label>
+        <label class="settings-row">
+          <span>Difficulty</span>
+          <select id="setting-difficulty">
+            <option value="easy">Easy</option>
+            <option value="normal">Normal</option>
+            <option value="hard">Hard</option>
+          </select>
+        </label>
+        <label class="settings-row">
+          <span>Controls</span>
+          <select id="setting-controls">
+            <option value="auto">Auto</option>
+            <option value="keyboard">Keyboard</option>
+            <option value="touch">Touch</option>
+          </select>
+        </label>
+        <button class="btn btn-danger" id="reset-progress-btn">Reset Progress</button>
+      </div>
+      <button class="btn btn-back" data-nav="screen-menu">Back</button>
+    </div>
+  </div>
+
+  <!-- How to Play -->
+  <div id="screen-how-to-play" class="screen hidden">
+    <div class="panel">
+      <h2>How to Play</h2>
+      <ul class="howto-list">
+        <li>Use Arrow Keys / WASD, swipe, or the on-screen D-pad to steer your snake.</li>
+        <li>Eat food to grow and score points. Avoid walls, yourself, and dangerous obstacles.</li>
+        <li>Golden food is worth big points. Poison food hurts you — avoid it!</li>
+        <li>Grab power-ups for shields, magnets, and double points.</li>
+        <li>Complete a level's objective to unlock the next level and earn stars.</li>
+        <li>Unlock new snake skins by completing levels.</li>
+      </ul>
+      <button class="btn btn-back" data-nav="screen-menu">Back</button>
+    </div>
+  </div>
+
+  <!-- Pause Menu -->
+  <div id="screen-pause" class="screen hidden">
+    <div class="panel">
+      <h2>Paused</h2>
+      <div class="menu-buttons">
+        <button class="btn btn-primary" data-action="resume">Resume</button>
+        <button class="btn" data-action="restart-level">Restart Level</button>
+        <button class="btn" data-nav="screen-settings">Settings</button>
+        <button class="btn" data-action="quit-to-menu">Quit to Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Over -->
+  <div id="screen-game-over" class="screen hidden">
+    <div class="panel">
+      <h2>Game Over</h2>
+      <div class="stat-list">
+        <div class="stat-row"><span>Final Score</span><span id="go-score">0</span></div>
+        <div class="stat-row"><span>High Score</span><span id="go-high-score">0</span></div>
+        <div class="stat-row"><span>Food Collected</span><span id="go-food">0</span></div>
+        <div class="stat-row"><span>Time Survived</span><span id="go-time">0s</span></div>
+      </div>
+      <div class="menu-buttons">
+        <button class="btn btn-primary" data-action="restart-level">Restart</button>
+        <button class="btn" data-action="quit-to-menu">Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Level Complete -->
+  <div id="screen-level-complete" class="screen hidden">
+    <div class="panel">
+      <h2>Level Complete!</h2>
+      <div id="lc-stars" class="stars">☆☆☆</div>
+      <div class="stat-list">
+        <div class="stat-row"><span>Score</span><span id="lc-score">0</span></div>
+        <div class="stat-row"><span>Unlocked</span><span id="lc-unlock">-</span></div>
+      </div>
+      <div class="menu-buttons">
+        <button class="btn btn-primary" data-action="next-level">Next Level</button>
+        <button class="btn" data-action="quit-to-menu">Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

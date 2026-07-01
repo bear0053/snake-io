@@ -1,0 +1,489 @@
+# Requirement Specification: Multi-Level HTML5 Snake Game
+
+## 1. Project Overview
+
+Build a fun, addictive, browser-based Snake game using HTML, CSS, and JavaScript. The game should feel modern, polished, and replayable, with multiple levels, themed landscapes, unlockable snakes, power-ups, obstacles, and progression.
+
+The game should work on desktop and mobile browsers.
+
+## 2. Core Game Concept
+
+The player controls a snake that moves continuously around a game board. The goal is to collect food, grow longer, earn points, avoid collisions, and complete level objectives.
+
+Unlike a basic Snake game, this version should include:
+
+* Multiple levels
+* Different themed landscapes
+* Unlockable snakes
+* Power-ups
+* Obstacles
+* Increasing difficulty
+* High scores
+* Mobile-friendly controls
+
+## 3. Target Platform
+
+The game should be built as a web app using:
+
+* HTML5
+* CSS3
+* JavaScript
+* Canvas preferred for gameplay rendering
+
+The game should run in:
+
+* Chrome
+* Safari
+* Firefox
+* Edge
+* Mobile Safari
+* Android Chrome
+
+No backend is required for the first version unless online leaderboards are added later.
+
+## 4. Game Modes
+
+### 4.1 Classic Mode
+
+Traditional Snake gameplay:
+
+* Eat food
+* Grow longer
+* Avoid walls and self-collision
+* Score as high as possible
+
+### 4.2 Level Mode
+
+Players progress through themed levels with specific objectives.
+
+Example objectives:
+
+* Collect 10 apples
+* Survive for 90 seconds
+* Reach a target score
+* Avoid poison food
+* Collect a key and reach the exit
+* Defeat or avoid enemy snakes
+
+### 4.3 Endless Mode
+
+An infinite version where speed and difficulty increase over time.
+
+## 5. Level Themes / Landscapes
+
+Each level should have a visually distinct background, board design, food style, obstacles, and sound effects.
+
+### Level 1: Garden Grove
+
+* Grass background
+* Apples as food
+* Flowers and rocks as obstacles
+* Easy speed
+
+### Level 2: Desert Dunes
+
+* Sand background
+* Cactus obstacles
+* Water droplets as bonus items
+* Occasional sandstorm visual effect
+
+### Level 3: Snowy Peaks
+
+* Ice background
+* Slippery movement effect
+* Snowballs as obstacles
+* Blue berries as food
+
+### Level 4: Jungle Ruins
+
+* Jungle background
+* Vines, stones, and ruins
+* Moving bugs as hazards
+* Hidden bonus fruit
+
+### Level 5: Lava Cavern
+
+* Dark volcanic background
+* Lava pools as hazards
+* Fire fruit as bonus item
+* Faster movement
+
+### Level 6: Cyber Grid
+
+* Neon digital landscape
+* Teleport portals
+* Laser barriers
+* Glowing energy orbs as food
+
+## 6. Snake Types
+
+The game should include multiple snake skins or snake characters.
+
+### Default Snake
+
+* Green snake
+* Balanced movement
+* Available from start
+
+### Fire Snake
+
+* Red/orange design
+* Unlocks after Lava Cavern
+* Optional visual flame trail
+
+### Ice Snake
+
+* Blue/white design
+* Unlocks after Snowy Peaks
+* Optional frost trail
+
+### Cyber Snake
+
+* Neon purple/blue design
+* Unlocks after Cyber Grid
+* Glowing segments
+
+### Golden Snake
+
+* Premium reward snake
+* Unlocks after completing all levels
+* Sparkle effect
+
+Snake differences should be mostly cosmetic in version 1 to keep gameplay fair. Optional later versions may add unique abilities.
+
+## 7. Gameplay Mechanics
+
+### 7.1 Movement
+
+* Snake moves continuously in one direction
+* Player changes direction using keyboard, swipe, or on-screen buttons
+* Snake cannot instantly reverse into itself
+
+Desktop controls:
+
+* Arrow keys
+* WASD
+
+Mobile controls:
+
+* Swipe gestures
+* Optional on-screen directional pad
+
+### 7.2 Collision Rules
+
+Game ends when the snake:
+
+* Hits a wall, unless the level allows wraparound
+* Hits itself
+* Hits a dangerous obstacle
+* Hits an enemy snake
+
+### 7.3 Food
+
+Food appears randomly on valid tiles.
+
+Food types:
+
+* Regular food: increases score and snake length
+* Golden food: bonus points
+* Speed food: temporary speed boost
+* Shrink food: reduces snake length
+* Poison food: reduces score or ends game depending on difficulty
+* Key item: unlocks level exit
+
+### 7.4 Power-Ups
+
+Power-ups should appear occasionally.
+
+Examples:
+
+* Shield: survive one collision
+* Magnet: attracts nearby food
+* Slow Time: temporarily slows the snake
+* Ghost Mode: pass through obstacles briefly
+* Double Points: temporary score multiplier
+
+Power-ups should have clear icons and timers.
+
+## 8. Progression System
+
+Players should unlock levels by completing previous levels.
+
+Suggested progression:
+
+* Level 1 available by default
+* Level 2 unlocks after completing Level 1
+* Level 3 unlocks after completing Level 2
+* Continue until final level
+* Golden Snake unlocks after completing all levels
+
+Use local storage to save:
+
+* Unlocked levels
+* High scores
+* Selected snake
+* Unlocked snake skins
+* Settings
+
+## 9. Scoring System
+
+Suggested scoring:
+
+* Regular food: 10 points
+* Golden food: 50 points
+* Completing level objective: 100 points
+* Remaining time bonus: 1 point per second
+* No-hit bonus: 100 points
+* Combo bonus for collecting food quickly
+
+The game should display:
+
+* Current score
+* High score
+* Level objective progress
+* Snake length
+* Active power-up timer
+
+## 10. Difficulty
+
+Difficulty should increase through:
+
+* Faster snake movement
+* More obstacles
+* Moving hazards
+* Smaller safe spaces
+* More dangerous food types
+* Time-based objectives
+
+Difficulty options:
+
+* Easy
+* Normal
+* Hard
+
+Easy mode may allow:
+
+* Slower speed
+* Fewer hazards
+* One extra life or shield
+
+## 11. User Interface
+
+### Main Menu
+
+Should include:
+
+* Play
+* Level Select
+* Snake Select
+* High Scores
+* Settings
+* How to Play
+
+### In-Game HUD
+
+Should show:
+
+* Score
+* Level
+* Objective
+* Timer, if applicable
+* Active power-up
+* Pause button
+* Snake skin icon
+
+### Pause Menu
+
+Should include:
+
+* Resume
+* Restart Level
+* Settings
+* Quit to Main Menu
+
+### Game Over Screen
+
+Should include:
+
+* Final score
+* High score
+* Food collected
+* Time survived
+* Restart
+* Main Menu
+
+### Level Complete Screen
+
+Should include:
+
+* Score
+* Stars earned
+* Unlock rewards
+* Next Level button
+
+## 12. Visual Style
+
+The game should feel colorful, polished, and arcade-like.
+
+Requirements:
+
+* Smooth animations
+* Responsive canvas
+* Themed backgrounds
+* Animated snake movement
+* Food sparkle or pulse effect
+* Power-up glow effect
+* Collision animation
+* Level transition animation
+
+Visual style should be playful, clean, and family-friendly.
+
+## 13. Audio
+
+Include optional audio with mute controls.
+
+Sounds:
+
+* Food collected
+* Power-up collected
+* Collision
+* Level complete
+* Game over
+* Button click
+* Background music per theme
+
+Audio must be toggleable from settings.
+
+## 14. Settings
+
+Settings menu should include:
+
+* Music on/off
+* Sound effects on/off
+* Difficulty
+* Control type
+* Theme brightness, optional
+* Reset progress
+
+## 15. Technical Requirements
+
+### 15.1 Architecture
+
+Recommended files:
+
+* `index.html`
+* `styles.css`
+* `game.js`
+* `levels.js`
+* `snakes.js`
+* `assets/`
+
+### 15.2 Rendering
+
+Use HTML5 Canvas for the game board.
+
+### 15.3 Data Storage
+
+Use browser localStorage for:
+
+* High scores
+* Progress
+* Snake unlocks
+* Settings
+
+### 15.4 Performance
+
+The game should:
+
+* Run at 60 FPS where possible
+* Avoid lag on mobile
+* Scale to different screen sizes
+* Pause when browser tab is inactive
+
+### 15.5 Responsiveness
+
+The game should support:
+
+* Desktop landscape layout
+* Mobile portrait layout
+* Tablet layout
+* Touch controls
+
+## 16. Level Data Structure
+
+Levels should be configurable through JavaScript objects.
+
+Each level should define:
+
+* Level name
+* Theme
+* Background
+* Grid size
+* Snake speed
+* Objective
+* Obstacles
+* Food types
+* Power-ups
+* Special mechanics
+* Unlock reward
+
+Example:
+
+```js
+{
+  id: 1,
+  name: "Garden Grove",
+  theme: "garden",
+  gridSize: 24,
+  speed: 140,
+  objective: {
+    type: "collect_food",
+    target: 10
+  },
+  obstacles: ["rock", "flower"],
+  powerUps: ["shield", "double_points"],
+  unlocks: {
+    nextLevel: 2
+  }
+}
+```
+
+## 17. Acceptance Criteria
+
+The project is complete when:
+
+* Player can start a new game from the main menu
+* Snake moves correctly with keyboard and touch controls
+* Snake grows when eating food
+* Score updates correctly
+* Collisions trigger game over
+* At least 6 themed levels are playable
+* Each level has a unique landscape
+* At least 5 snake skins are available
+* Snake skins can be unlocked and selected
+* Progress is saved in localStorage
+* High scores are saved
+* Game works on desktop and mobile
+* Audio can be muted
+* Game can be paused and resumed
+* Level completion unlocks the next level
+* Game over and level complete screens work correctly
+
+## 18. Optional Future Enhancements
+
+These are not required for version 1 but can be added later:
+
+* Online leaderboard
+* Daily challenge mode
+* Multiplayer snake battle
+* Boss levels
+* Snake abilities
+* Seasonal events
+* Coins and shop system
+* Achievements
+* User accounts
+* Progressive Web App install support
+
+## 19. Success Goal
+
+The final game should feel more polished than a basic Snake clone. It should be easy to learn, fast to replay, visually appealing, and rewarding enough that players want to unlock every level and snake skin.
