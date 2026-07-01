@@ -68,6 +68,26 @@ export const POWER_UPS = {
     onCollect(game) {
       addTimedEffect(game.snake, "double_points", 10000);
     }
+  },
+  slow_time: {
+    id: "slow_time",
+    name: "Slow Time",
+    icon: "🐌",
+    color: "#26c6da",
+    hudDuration: 8000,
+    onCollect(game) {
+      addTimedEffect(game.snake, "slow_time", 8000);
+    }
+  },
+  ghost: {
+    id: "ghost",
+    name: "Ghost Mode",
+    icon: "👻",
+    color: "#b39ddb",
+    hudDuration: 6000,
+    onCollect(game) {
+      addTimedEffect(game.snake, "ghost", 6000);
+    }
   }
 };
 

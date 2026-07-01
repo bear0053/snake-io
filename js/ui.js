@@ -86,6 +86,11 @@ export function populateHighScores() {
   classicCard.innerHTML = `<div><div class="card-title">Classic Mode</div><div class="card-sub">High Score</div></div><div class="card-title">${SaveData.data.highScores.classic}</div>`;
   list.appendChild(classicCard);
 
+  const endlessCard = document.createElement("div");
+  endlessCard.className = "card";
+  endlessCard.innerHTML = `<div><div class="card-title">Endless Mode</div><div class="card-sub">High Score</div></div><div class="card-title">${SaveData.data.highScores.endless}</div>`;
+  list.appendChild(endlessCard);
+
   for (const level of LEVELS) {
     const result = SaveData.data.highScores.byLevel[String(level.id)];
     const card = document.createElement("div");
@@ -111,12 +116,27 @@ export function updateHud(game) {
   document.getElementById("hud-length").textContent = game.snake.segments.length;
 
   const objWrap = document.getElementById("hud-objective-wrap");
-  if (game.level.objective) {
+  const objective = game.level.objective;
+  if (objective) {
     objWrap.style.display = "";
-    document.getElementById("hud-objective-label").textContent =
-      game.level.objective.type === "collect_food" ? "Apples" : "Objective";
-    document.getElementById("hud-objective").textContent =
-      `${game.objectiveProgress} / ${game.level.objective.target}`;
+    const labelEl = document.getElementById("hud-objective-label");
+    const valueEl = document.getElementById("hud-objective");
+    if (objective.type === "collect_food") {
+      labelEl.textContent = "Food";
+      valueEl.textContent = `${game.objectiveProgress} / ${objective.target}`;
+    } else if (objective.type === "survive_time") {
+      labelEl.textContent = "Survive";
+      valueEl.textContent = `${game.objectiveProgress}s / ${objective.target}s`;
+    } else if (objective.type === "reach_score") {
+      labelEl.textContent = "Score Goal";
+      valueEl.textContent = `${game.objectiveProgress} / ${objective.target}`;
+    } else if (objective.type === "collect_key_reach_exit") {
+      labelEl.textContent = game.hasKey ? "Find the exit!" : "Find the key";
+      valueEl.textContent = game.hasKey ? "🔑" : "";
+    } else {
+      labelEl.textContent = "Objective";
+      valueEl.textContent = `${game.objectiveProgress}`;
+    }
   } else {
     objWrap.style.display = "none";
   }

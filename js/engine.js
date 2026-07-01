@@ -7,6 +7,10 @@ import { getSkin } from "./snakes.js";
 import { AudioSys } from "./audio.js";
 
 const MAX_POWERUPS_ON_BOARD = 2;
+const LASER_CYCLE_MS = 1500;
+const ENDLESS_RAMP_INTERVAL_MS = 10000;
+const ENDLESS_MIN_SPEED = 60;
+const ENDLESS_MAX_OBSTACLES = 24;
 
 export function createGame({ level, mode, skinId, difficulty }) {
   const adjLevel = applyDifficulty(level, difficulty);
@@ -20,6 +24,10 @@ export function createGame({ level, mode, skinId, difficulty }) {
     foods: [],
     powerUps: [],
     obstacles: [],
+    key: null,
+    exit: null,
+    hasKey: false,
+    portals: [],
     score: 0,
     foodCollected: 0,
     startTime: performance.now(),
@@ -31,6 +39,7 @@ export function createGame({ level, mode, skinId, difficulty }) {
     collisionFlash: { active: false, elapsedMs: 0, durationMs: 400 },
     levelTransition: { active: false, elapsedMs: 0, durationMs: 500 },
     powerUpTimer: 0,
+    endlessRampTimer: 0,
     ended: false,
     endReason: null,
     comboWindowMs: 2500,
@@ -40,22 +49,31 @@ export function createGame({ level, mode, skinId, difficulty }) {
 
   placeObstacles(game);
   spawnFood(game);
+  if (adjLevel.objective?.type === "collect_key_reach_exit") spawnKeyAndExit(game);
+  if (adjLevel.mechanics.portals) placePortals(game);
   return game;
 }
 
 function occupiedCells(game) {
-  return [...game.snake.segments, ...game.obstacles, ...game.foods, ...game.powerUps];
+  const extra = [];
+  if (game.key) extra.push(game.key);
+  if (game.exit) extra.push(game.exit);
+  if (game.portals) extra.push(...game.portals);
+  return [...game.snake.segments, ...game.obstacles, ...game.foods, ...game.powerUps, ...extra];
 }
 
-function resolveDangerous(obstaclesDef, type) {
-  return obstaclesDef.types.find(t => t.type === type)?.dangerous ?? false;
+function resolveObstacleTypeDef(obstaclesDef, type) {
+  return obstaclesDef.types.find(t => t.type === type);
 }
 
 function placeObstacles(game) {
   const { obstacles } = game.level;
   if (obstacles.placement === "fixed_layout" && obstacles.layout) {
     for (const o of obstacles.layout) {
-      game.obstacles.push(makeObstacle(o.x, o.y, o.type, resolveDangerous(obstacles, o.type)));
+      const typeDef = resolveObstacleTypeDef(obstacles, o.type);
+      const obs = makeObstacle(o.x, o.y, o.type, typeDef?.dangerous ?? false);
+      if (typeDef?.moving) initMovingObstacle(obs);
+      game.obstacles.push(obs);
     }
     return;
   }
@@ -63,9 +81,18 @@ function placeObstacles(game) {
     for (let i = 0; i < typeDef.count; i++) {
       const cell = randomFreeCell(game.level.gridSize, occupiedCells(game));
       if (!cell) continue;
-      game.obstacles.push(makeObstacle(cell.x, cell.y, typeDef.type, typeDef.dangerous));
+      const obs = makeObstacle(cell.x, cell.y, typeDef.type, typeDef.dangerous);
+      if (typeDef.moving) initMovingObstacle(obs);
+      game.obstacles.push(obs);
     }
   }
+}
+
+function initMovingObstacle(obs) {
+  obs.moving = true;
+  obs.moveAccumulator = 0;
+  obs.moveIntervalMs = 450;
+  obs.dir = null;
 }
 
 function spawnFood(game) {
@@ -81,6 +108,25 @@ function spawnPowerUp(game) {
   const cell = randomFreeCell(game.level.gridSize, occupiedCells(game));
   if (!cell) return;
   game.powerUps.push(makePowerUp(cell.x, cell.y, type));
+}
+
+function spawnKeyAndExit(game) {
+  const keyCell = randomFreeCell(game.level.gridSize, occupiedCells(game));
+  if (keyCell) game.key = { x: keyCell.x, y: keyCell.y };
+  const exitCell = randomFreeCell(game.level.gridSize, occupiedCells(game));
+  if (exitCell) game.exit = { x: exitCell.x, y: exitCell.y };
+}
+
+function placePortals(game) {
+  const a = randomFreeCell(game.level.gridSize, occupiedCells(game));
+  if (!a) return;
+  game.portals.push({ x: a.x, y: a.y });
+  const b = randomFreeCell(game.level.gridSize, occupiedCells(game));
+  if (!b) {
+    game.portals.pop();
+    return;
+  }
+  game.portals.push({ x: b.x, y: b.y });
 }
 
 function endGame(game, reason) {
@@ -144,6 +190,7 @@ function checkPickups(game, head) {
     handleFoodCollected(game, food);
     if (!game.ended) spawnFood(game);
   }
+  if (game.ended) return;
 
   const puIdx = game.powerUps.findIndex(p => p.x === head.x && p.y === head.y);
   if (puIdx !== -1) {
@@ -152,13 +199,106 @@ function checkPickups(game, head) {
     collectPowerUp(game, pu.type);
     AudioSys.playSfx("powerup");
   }
+
+  if (game.key && head.x === game.key.x && head.y === game.key.y) {
+    game.key = null;
+    game.hasKey = true;
+    AudioSys.playSfx("powerup");
+  }
+
+  if (game.exit && game.hasKey && head.x === game.exit.x && head.y === game.exit.y) {
+    completeLevel(game);
+    return;
+  }
+
+  if (game.portals.length === 2) {
+    const idx = game.portals.findIndex(p => p.x === head.x && p.y === head.y);
+    if (idx !== -1) {
+      const dest = game.portals[1 - idx];
+      head.x = dest.x;
+      head.y = dest.y;
+      game.snake.segments[0].x = dest.x;
+      game.snake.segments[0].y = dest.y;
+    }
+  }
+}
+
+function checkObjective(game) {
+  const obj = game.level.objective;
+  if (!obj || game.ended) return;
+  if (obj.type === "survive_time") {
+    game.objectiveProgress = Math.min(obj.target, Math.floor(game.elapsedMs / 1000));
+    if (game.elapsedMs >= obj.target * 1000) completeLevel(game);
+  } else if (obj.type === "reach_score") {
+    game.objectiveProgress = Math.min(obj.target, game.score);
+    if (game.score >= obj.target) completeLevel(game);
+  } else if (obj.type === "collect_key_reach_exit") {
+    game.objectiveProgress = game.hasKey ? 1 : 0;
+  }
+  // "collect_food" progress is tracked incrementally in handleFoodCollected.
+}
+
+function updateLasers(game) {
+  if (!game.level.mechanics.lasers) return;
+  const on = Math.floor(game.elapsedMs / LASER_CYCLE_MS) % 2 === 0;
+  for (const obs of game.obstacles) {
+    if (obs.type === "laser") obs.dangerous = on;
+  }
+}
+
+function updateMovingHazards(game, stepMs) {
+  if (!game.level.mechanics.movingHazards) return;
+  const dirs = Object.values(DIRS);
+  for (const obs of game.obstacles) {
+    if (!obs.moving) continue;
+    obs.moveAccumulator += stepMs;
+    if (obs.moveAccumulator < obs.moveIntervalMs) continue;
+    obs.moveAccumulator = 0;
+
+    if (!obs.dir || Math.random() < 0.35) {
+      obs.dir = dirs[Math.floor(Math.random() * dirs.length)];
+    }
+    const nx = obs.x + obs.dir.x;
+    const ny = obs.y + obs.dir.y;
+    const inBounds = nx >= 0 && ny >= 0 && nx < game.level.gridSize && ny < game.level.gridSize;
+    const blocked = !inBounds ||
+      game.obstacles.some(o => o !== obs && o.x === nx && o.y === ny) ||
+      game.snake.segments.some(s => s.x === nx && s.y === ny);
+
+    if (blocked) {
+      obs.dir = dirs[Math.floor(Math.random() * dirs.length)];
+      continue;
+    }
+    obs.x = nx;
+    obs.y = ny;
+  }
+}
+
+function updateEndlessRamp(game, stepMs) {
+  if (game.mode !== "endless") return;
+  game.endlessRampTimer += stepMs;
+  if (game.endlessRampTimer < ENDLESS_RAMP_INTERVAL_MS) return;
+  game.endlessRampTimer -= ENDLESS_RAMP_INTERVAL_MS;
+  game.level.speed = Math.max(ENDLESS_MIN_SPEED, Math.round(game.level.speed * 0.92));
+  if (game.obstacles.length < ENDLESS_MAX_OBSTACLES) {
+    const cell = randomFreeCell(game.level.gridSize, occupiedCells(game));
+    if (cell) game.obstacles.push(makeObstacle(cell.x, cell.y, "rock", true));
+  }
 }
 
 function moveSnake(game, stepMs) {
   const snake = game.snake;
   snake.prevSegments = snake.segments.map(s => ({ ...s }));
 
-  const dir = snake.pendingDirections.shift() ?? snake.direction;
+  let dir;
+  if (game.level.mechanics.slippery) {
+    snake.slipTickCounter = (snake.slipTickCounter ?? 0) + 1;
+    dir = (snake.slipTickCounter % 2 === 0 && snake.pendingDirections.length)
+      ? snake.pendingDirections.shift()
+      : snake.direction;
+  } else {
+    dir = snake.pendingDirections.shift() ?? snake.direction;
+  }
   snake.direction = dir;
 
   let head = { x: snake.segments[0].x + DIRS[dir].x, y: snake.segments[0].y + DIRS[dir].y };
@@ -166,7 +306,8 @@ function moveSnake(game, stepMs) {
 
   const willGrow = snake.pendingGrowth > 0;
   const bodyToCheck = willGrow ? snake.segments : snake.segments.slice(0, -1);
-  const collisionType = detectFatalCollision(head, game.level, bodyToCheck, game.obstacles);
+  const obstaclesForCollision = hasActiveEffect(snake, "ghost") ? [] : game.obstacles;
+  const collisionType = detectFatalCollision(head, game.level, bodyToCheck, obstaclesForCollision);
 
   if (collisionType) {
     if (tryAbsorbCollision(game)) return; // shield consumed, snake stays put this tick
@@ -183,7 +324,7 @@ function moveSnake(game, stepMs) {
   }
 
   const skin = getSkin(snake.skinId);
-  if (skin.trailEffect === "flame") {
+  if (skin.trailEffect) {
     const tail = snake.prevSegments.at(-1);
     if (tail) snake.trailParticles.push({ x: tail.x, y: tail.y, life: 1 });
   }
@@ -202,7 +343,11 @@ export function tickGame(game, stepMs) {
     spawnPowerUp(game);
   }
   tickEffects(game, stepMs);
+  updateLasers(game);
+  updateMovingHazards(game, stepMs);
+  updateEndlessRamp(game, stepMs);
   moveSnake(game, stepMs);
+  if (!game.ended) checkObjective(game);
 }
 
 // --- Persistent RAF loop --------------------------------------------------

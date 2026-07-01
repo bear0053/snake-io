@@ -1,8 +1,9 @@
 import { States, StateMachine } from "./state.js";
 import { SaveData } from "./storage.js";
-import { LEVELS, getLevel, nextLevelOf, makeClassicPseudoLevel } from "./levels.js";
+import { LEVELS, getLevel, nextLevelOf, makeClassicPseudoLevel, makeEndlessPseudoLevel } from "./levels.js";
 import { getSkin } from "./snakes.js";
 import { createGame, createGameLoop } from "./engine.js";
+import { hasActiveEffect } from "./powerups.js";
 import { renderGame } from "./render.js";
 import { initInput } from "./input.js";
 import { createResizer } from "./resize.js";
@@ -22,8 +23,10 @@ let currentGame = null;
 let currentLevelId = null; // number | 'classic'
 
 function newGameFor(levelIdOrClassic) {
-  const mode = levelIdOrClassic === "classic" ? "classic" : "level";
-  const level = mode === "classic" ? makeClassicPseudoLevel() : getLevel(levelIdOrClassic);
+  const mode = levelIdOrClassic === "classic" ? "classic" : levelIdOrClassic === "endless" ? "endless" : "level";
+  const level = mode === "classic" ? makeClassicPseudoLevel()
+    : mode === "endless" ? makeEndlessPseudoLevel()
+    : getLevel(levelIdOrClassic);
   const game = createGame({
     level,
     mode,
@@ -73,11 +76,15 @@ function handleGameEnded(game) {
     showLevelCompleteStats({ score: game.score, stars, unlockMsg });
     StateMachine.setState(States.LEVEL_COMPLETE);
   } else {
-    const highScoreKey = currentLevelId === "classic" ? "classic" : null;
     let highScore;
-    if (highScoreKey) {
-      SaveData.recordClassicScore(game.score);
-      highScore = SaveData.data.highScores.classic;
+    if (currentLevelId === "classic" || currentLevelId === "endless") {
+      if (currentLevelId === "endless") {
+        SaveData.recordEndlessScore(game.score);
+        highScore = SaveData.data.highScores.endless;
+      } else {
+        SaveData.recordClassicScore(game.score);
+        highScore = SaveData.data.highScores.classic;
+      }
     } else {
       SaveData.recordLevelResult(currentLevelId, {
         score: game.score,
@@ -107,7 +114,7 @@ createGameLoop({
     if (StateMachine.current === States.PLAYING) updateHud(game);
   },
   isActive: () => StateMachine.current === States.PLAYING,
-  getStepMs: () => currentGame.level.speed,
+  getStepMs: () => currentGame.level.speed * (hasActiveEffect(currentGame.snake, "slow_time") ? 1.6 : 1),
   getGame: () => currentGame,
   onEnded: handleGameEnded
 });
@@ -171,6 +178,9 @@ document.addEventListener("click", (e) => {
   switch (actionBtn.dataset.action) {
     case "play-classic":
       startGame("classic");
+      break;
+    case "play-endless":
+      startGame("endless");
       break;
     case "resume":
       StateMachine.setState(States.PLAYING);

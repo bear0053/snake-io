@@ -12,9 +12,28 @@ export const SKINS = [
     colors: { body: "#ff7043", head: "#d84315", eye: "#fff3e0" },
     trailEffect: "flame",
     unlock: { type: "complete_level", levelId: 5 }
+  },
+  {
+    id: "ice",
+    name: "Ice Snake",
+    colors: { body: "#4fc3f7", head: "#0288d1", eye: "#ffffff" },
+    trailEffect: "frost",
+    unlock: { type: "complete_level", levelId: 3 }
+  },
+  {
+    id: "cyber",
+    name: "Cyber Snake",
+    colors: { body: "#ab47bc", head: "#6a1b9a", eye: "#e1bee7" },
+    trailEffect: "glow",
+    unlock: { type: "complete_level", levelId: 6 }
+  },
+  {
+    id: "golden",
+    name: "Golden Snake",
+    colors: { body: "#ffd54f", head: "#ffa000", eye: "#ffffff" },
+    trailEffect: "sparkle",
+    unlock: { type: "complete_all_levels" }
   }
-  // Phase 2: ice (unlock: complete_level 3), cyber (unlock: complete_level 6),
-  // golden (unlock: complete_all_levels) - added as pure data entries here.
 ];
 
 export function getSkin(skinId) {

@@ -7,6 +7,7 @@ const DEFAULT_SAVE = {
   selectedSkin: "default",
   highScores: {
     classic: 0,
+    endless: 0,
     byLevel: {}
   },
   settings: {
@@ -105,6 +106,15 @@ class SaveStore {
   recordClassicScore(score) {
     if (score > this.data.highScores.classic) {
       this.data.highScores.classic = score;
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
+  recordEndlessScore(score) {
+    if (score > this.data.highScores.endless) {
+      this.data.highScores.endless = score;
       this.save();
       return true;
     }
