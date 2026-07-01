@@ -322,11 +322,19 @@ const THEME_FOOD_STYLES = {
   cyber: { shape: "orb", regular: ["#80f6ff", "#00acc1"], golden: ["#fff59d", "#f9a825"] }
 };
 
+const EXPIRY_FADE_WARNING_MS = 600;
+
 function drawFood(ctx, game, food) {
   const { x: cx, y: cy } = cellCenter(food, game.cellPx);
   const r = game.cellPx * 0.42;
-  const elapsed = performance.now() - food.spawnedAt;
+  const now = performance.now();
+  const elapsed = now - food.spawnedAt;
   const pulse = 1 + 0.08 * Math.sin(elapsed / 200 + food.sparklePhase);
+
+  const remaining = food.expiresAt - now;
+  const fadeAlpha = remaining < EXPIRY_FADE_WARNING_MS ? Math.max(0.15, remaining / EXPIRY_FADE_WARNING_MS) : 1;
+  ctx.save();
+  ctx.globalAlpha = fadeAlpha;
 
   if (food.type === "poison") {
     drawPoisonFood(ctx, cx, cy, r, pulse);
@@ -357,14 +365,22 @@ function drawFood(ctx, game, food) {
   if (sparkleAlpha > 0.85) {
     drawSparkle(ctx, cx + r * 0.55, cy - r * 0.55, r * 0.35, (sparkleAlpha - 0.85) / 0.15);
   }
+
+  ctx.restore();
 }
 
 function drawPowerUp(ctx, game, pu) {
   const { x: cx, y: cy } = cellCenter(pu, game.cellPx);
   const def = POWER_UPS[pu.type];
-  const elapsed = performance.now() - pu.spawnedAt;
+  const now = performance.now();
+  const elapsed = now - pu.spawnedAt;
   const glow = 10 + 8 * Math.sin(elapsed / 260);
   const r = game.cellPx * 0.4;
+
+  const remaining = pu.expiresAt - now;
+  const fadeAlpha = remaining < EXPIRY_FADE_WARNING_MS ? Math.max(0.15, remaining / EXPIRY_FADE_WARNING_MS) : 1;
+  ctx.save();
+  ctx.globalAlpha = fadeAlpha;
 
   ctx.save();
   ctx.shadowColor = def.color;
@@ -380,6 +396,8 @@ function drawPowerUp(ctx, game, pu) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(def.icon, cx, cy + 1);
+
+  ctx.restore();
 }
 
 // --- Key / Exit / Portals ---------------------------------------------------

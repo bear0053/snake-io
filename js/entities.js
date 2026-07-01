@@ -45,12 +45,22 @@ export class Snake {
   }
 }
 
+const FOOD_LIFETIME_MIN_MS = 2000;
+const FOOD_LIFETIME_MAX_MS = 10000;
+
 export function makeFood(x, y, type, points) {
-  return { x, y, type, points, spawnedAt: performance.now(), sparklePhase: Math.random() * Math.PI * 2 };
+  const spawnedAt = performance.now();
+  const lifetimeMs = FOOD_LIFETIME_MIN_MS + Math.random() * (FOOD_LIFETIME_MAX_MS - FOOD_LIFETIME_MIN_MS);
+  return { x, y, type, points, spawnedAt, expiresAt: spawnedAt + lifetimeMs, sparklePhase: Math.random() * Math.PI * 2 };
 }
 
+const POWERUP_LIFETIME_MIN_MS = 2000;
+const POWERUP_LIFETIME_MAX_MS = 10000;
+
 export function makePowerUp(x, y, type) {
-  return { x, y, type, spawnedAt: performance.now() };
+  const spawnedAt = performance.now();
+  const lifetimeMs = POWERUP_LIFETIME_MIN_MS + Math.random() * (POWERUP_LIFETIME_MAX_MS - POWERUP_LIFETIME_MIN_MS);
+  return { x, y, type, spawnedAt, expiresAt: spawnedAt + lifetimeMs };
 }
 
 export function makeObstacle(x, y, type, dangerous) {

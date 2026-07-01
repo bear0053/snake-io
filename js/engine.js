@@ -11,6 +11,14 @@ const LASER_CYCLE_MS = 1500;
 const ENDLESS_RAMP_INTERVAL_MS = 10000;
 const ENDLESS_MIN_SPEED = 60;
 const ENDLESS_MAX_OBSTACLES = 24;
+const FOOD_MIN_COUNT = 1;
+const FOOD_MAX_COUNT = 3;
+const FOOD_SPAWN_INTERVAL_MIN_MS = 1500;
+const FOOD_SPAWN_INTERVAL_MAX_MS = 4000;
+
+function randomFoodSpawnInterval() {
+  return FOOD_SPAWN_INTERVAL_MIN_MS + Math.random() * (FOOD_SPAWN_INTERVAL_MAX_MS - FOOD_SPAWN_INTERVAL_MIN_MS);
+}
 
 export function createGame({ level, mode, skinId, difficulty }) {
   const adjLevel = applyDifficulty(level, difficulty);
@@ -40,6 +48,8 @@ export function createGame({ level, mode, skinId, difficulty }) {
     levelTransition: { active: false, elapsedMs: 0, durationMs: 500 },
     powerUpTimer: 0,
     endlessRampTimer: 0,
+    foodSpawnTimer: 0,
+    nextFoodSpawnMs: randomFoodSpawnInterval(),
     ended: false,
     endReason: null,
     comboWindowMs: 2500,
@@ -102,12 +112,37 @@ function spawnFood(game) {
   game.foods.push(makeFood(cell.x, cell.y, typeDef.type, typeDef.points));
 }
 
+function updateFoodLifecycle(game, stepMs) {
+  const now = performance.now();
+  game.foods = game.foods.filter(f => f.expiresAt > now);
+
+  if (game.foods.length < FOOD_MIN_COUNT) {
+    spawnFood(game);
+    game.foodSpawnTimer = 0;
+    game.nextFoodSpawnMs = randomFoodSpawnInterval();
+    return;
+  }
+  if (game.foods.length >= FOOD_MAX_COUNT) return;
+
+  game.foodSpawnTimer += stepMs;
+  if (game.foodSpawnTimer >= game.nextFoodSpawnMs) {
+    game.foodSpawnTimer = 0;
+    game.nextFoodSpawnMs = randomFoodSpawnInterval();
+    spawnFood(game);
+  }
+}
+
 function spawnPowerUp(game) {
   if (!game.level.powerUpPool.length || game.powerUps.length >= MAX_POWERUPS_ON_BOARD) return;
   const type = game.level.powerUpPool[Math.floor(Math.random() * game.level.powerUpPool.length)];
   const cell = randomFreeCell(game.level.gridSize, occupiedCells(game));
   if (!cell) return;
   game.powerUps.push(makePowerUp(cell.x, cell.y, type));
+}
+
+function updatePowerUpLifecycle(game) {
+  const now = performance.now();
+  game.powerUps = game.powerUps.filter(p => p.expiresAt > now);
 }
 
 function spawnKeyAndExit(game) {
@@ -188,7 +223,6 @@ function checkPickups(game, head) {
     const food = game.foods[foodIdx];
     game.foods.splice(foodIdx, 1);
     handleFoodCollected(game, food);
-    if (!game.ended) spawnFood(game);
   }
   if (game.ended) return;
 
@@ -337,6 +371,8 @@ function moveSnake(game, stepMs) {
 export function tickGame(game, stepMs) {
   if (game.ended) return;
   game.elapsedMs += stepMs;
+  updateFoodLifecycle(game, stepMs);
+  updatePowerUpLifecycle(game);
   game.powerUpTimer += stepMs;
   if (game.powerUpTimer >= game.level.powerUpSpawnRateMs) {
     game.powerUpTimer = 0;
