@@ -33,6 +33,13 @@ export const SKINS = [
     colors: { body: "#ffd54f", head: "#ffa000", eye: "#ffffff" },
     trailEffect: "sparkle",
     unlock: { type: "complete_all_levels" }
+  },
+  {
+    id: "odyssey",
+    name: "Odyssey Snake",
+    colors: { body: "#1c2b52", head: "#0d1730", eye: "#ffd54f", accent: "#2ec4b6" },
+    trailEffect: "odyssey",
+    unlock: { type: "endless_score", target: 500 }
   }
 ];
 
@@ -48,6 +55,8 @@ export function unlockDescription(skin) {
       return `Unlocks after completing level ${skin.unlock.levelId}`;
     case "complete_all_levels":
       return "Unlocks after completing all levels";
+    case "endless_score":
+      return `Score ${skin.unlock.target}+ in Endless Mode to unlock`;
     default:
       return "";
   }

@@ -88,3 +88,17 @@ export function randomFreeCell(gridSize, occupied, rng = Math.random) {
   }
   return null;
 }
+
+// Like randomFreeCell, but biased to land within `radius` cells of `origin` (falls back
+// to a fully random free cell if nothing nearby is open). Used by Odyssey Snake's
+// "Navigator's Luck" to spawn the next food closer to the player.
+export function randomFreeCellNear(origin, gridSize, occupied, radius, rng = Math.random) {
+  const span = radius * 2 + 1;
+  const maxAttempts = span * span * 4;
+  for (let i = 0; i < maxAttempts; i++) {
+    const x = origin.x + Math.floor(rng() * span) - radius;
+    const y = origin.y + Math.floor(rng() * span) - radius;
+    if (isCellFree(x, y, gridSize, occupied)) return { x, y };
+  }
+  return randomFreeCell(gridSize, occupied, rng);
+}

@@ -289,6 +289,15 @@ html, body {
   height: 20px;
 }
 
+.settings-row-slider {
+  align-items: center;
+}
+
+.settings-row input[type="range"] {
+  width: 120px;
+  accent-color: var(--accent);
+}
+
 .howto-list {
   text-align: left;
   line-height: 1.6;

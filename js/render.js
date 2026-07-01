@@ -404,9 +404,12 @@ function drawPowerUp(ctx, game, pu) {
 
 function drawKey(ctx, game, key) {
   const { x: cx, y: cy } = cellCenter(key, game.cellPx);
-  const elapsed = performance.now();
-  const bob = Math.sin(elapsed / 300) * game.cellPx * 0.06;
+  const now = performance.now();
+  const bob = Math.sin(now / 300) * game.cellPx * 0.06;
+  const remaining = key.expiresAt - now;
+  const fadeAlpha = remaining < EXPIRY_FADE_WARNING_MS ? Math.max(0.15, remaining / EXPIRY_FADE_WARNING_MS) : 1;
   ctx.save();
+  ctx.globalAlpha = fadeAlpha;
   ctx.translate(cx, cy + bob);
   ctx.shadowColor = "#ffd54f";
   ctx.shadowBlur = 14;
@@ -486,14 +489,60 @@ const TRAIL_STYLES = {
   flame: ["#ffca28", "#ff7043"],
   frost: ["#e1f5fe", "#4fc3f7"],
   glow: ["#ce93d8", "#8e24aa"],
-  sparkle: ["#fff9c4", "#ffd54f"]
+  sparkle: ["#fff9c4", "#ffd54f"],
+  odyssey: ["#2ec4b6", "#1c2b52"]
 };
+
+// Odyssey Snake decorations: a faint constellation-dot scale pattern down the body,
+// an explorer's brow stripe on the head, and a slowly-spinning compass rose at the tail.
+function drawOdysseyScale(ctx, x, y, s, accent) {
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = accent;
+  ctx.translate(x, y);
+  ctx.rotate(Math.PI / 4);
+  const d = s * 0.16;
+  ctx.fillRect(-d / 2, -d / 2, d, d);
+  ctx.restore();
+}
+
+function drawOdysseyHeadMark(ctx, x, y, s, gold) {
+  ctx.save();
+  ctx.strokeStyle = gold;
+  ctx.lineWidth = s * 0.07;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(x - s * 0.28, y - s * 0.3);
+  ctx.lineTo(x + s * 0.12, y - s * 0.38);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawOdysseyCompass(ctx, x, y, s, gold, accent) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(performance.now() / 900);
+  ctx.strokeStyle = gold;
+  ctx.lineWidth = s * 0.045;
+  ctx.beginPath();
+  ctx.moveTo(0, -s * 0.32);
+  ctx.lineTo(0, s * 0.32);
+  ctx.moveTo(-s * 0.32, 0);
+  ctx.lineTo(s * 0.32, 0);
+  ctx.stroke();
+  ctx.fillStyle = accent;
+  ctx.beginPath();
+  ctx.arc(0, 0, s * 0.08, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
 
 function drawSnake(ctx, game, interp) {
   const skin = getSkin(game.snake.skinId);
   const { segments, prevSegments } = game.snake;
   const cellPx = game.cellPx;
   const size = cellPx * 0.82;
+  const isOdyssey = skin.id === "odyssey";
 
   if (skin.trailEffect && game.snake.trailParticles.length) {
     const [colorA, colorB] = TRAIL_STYLES[skin.trailEffect] ?? TRAIL_STYLES.flame;
@@ -506,6 +555,17 @@ function drawSnake(ctx, game, interp) {
       ctx.fill();
       ctx.restore();
     }
+
+    // faint star sparkle drifting along the fading trail while moving
+    if (isOdyssey) {
+      const sparklePulse = 0.5 + 0.5 * Math.sin(performance.now() / 280);
+      if (sparklePulse > 0.82) {
+        const tail = game.snake.trailParticles[game.snake.trailParticles.length - 1];
+        if (tail) {
+          drawSparkle(ctx, tail.x * cellPx + cellPx / 2, tail.y * cellPx + cellPx / 2, cellPx * 0.3, (sparklePulse - 0.82) / 0.18);
+        }
+      }
+    }
   }
 
   for (let i = segments.length - 1; i >= 0; i--) {
@@ -514,12 +574,22 @@ function drawSnake(ctx, game, interp) {
     const x = lerp(prev.x, seg.x, interp) * cellPx + cellPx / 2;
     const y = lerp(prev.y, seg.y, interp) * cellPx + cellPx / 2;
     const isHead = i === 0;
+    const isTail = i === segments.length - 1;
     const s = isHead ? size * 1.08 : size;
 
     ctx.fillStyle = isHead ? skin.colors.head : skin.colors.body;
     ctx.beginPath();
     ctx.roundRect(x - s / 2, y - s / 2, s, s, s * 0.35);
     ctx.fill();
+
+    if (isOdyssey) {
+      if (isHead) {
+        drawOdysseyHeadMark(ctx, x, y, s, skin.colors.eye);
+      } else {
+        drawOdysseyScale(ctx, x, y, s, skin.colors.accent);
+        if (isTail) drawOdysseyCompass(ctx, x, y, s, skin.colors.eye, skin.colors.accent);
+      }
+    }
 
     if (isHead) {
       const dir = game.snake.direction;
@@ -543,6 +613,24 @@ function drawSnake(ctx, game, interp) {
       }
     }
   }
+}
+
+function drawFoodFlash(ctx, game) {
+  if (!game.foodFlash.active) return;
+  const t = game.foodFlash.elapsedMs / game.foodFlash.durationMs;
+  const alpha = Math.max(0, 0.5 * (1 - t));
+  const head = game.snake.segments[0];
+  const { x: cx, y: cy } = cellCenter(head, game.cellPx);
+  const r = game.cellPx * (1 + t * 1.5);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.shadowColor = "#ffd54f";
+  ctx.shadowBlur = 20;
+  ctx.fillStyle = "#ffd54f";
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 function drawCollisionFlash(ctx, game) {
@@ -576,12 +664,31 @@ export const themeRenderers = {
   cyber: { drawBackground: drawGradientBackground, drawObstacle: drawCyberObstacle }
 };
 
+// The background (gradient + grid lines) never changes except on resize/theme/level
+// change, so it's drawn once to an offscreen canvas and reused every frame instead of
+// re-stroking ~2 * gridSize lines at 60fps.
+const backgroundCache = { key: null, canvas: null };
+
+function drawCachedBackground(ctx, game, theme) {
+  const { width, height } = game.canvasCssSize;
+  const key = `${game.level.theme}|${game.cellPx}|${game.level.gridSize}|${width}|${height}`;
+  if (backgroundCache.key !== key) {
+    const off = document.createElement("canvas");
+    off.width = width;
+    off.height = height;
+    theme.drawBackground(off.getContext("2d"), game);
+    backgroundCache.key = key;
+    backgroundCache.canvas = off;
+  }
+  ctx.drawImage(backgroundCache.canvas, 0, 0);
+}
+
 export function renderGame(ctx, game, interp) {
   const { width, height } = game.canvasCssSize;
   ctx.clearRect(0, 0, width, height);
 
   const theme = themeRenderers[game.level.theme] ?? themeRenderers.garden;
-  theme.drawBackground(ctx, game);
+  drawCachedBackground(ctx, game, theme);
 
   for (const obs of game.obstacles) theme.drawObstacle(ctx, game, obs);
   if (game.exit) drawExit(ctx, game, game.exit, game.hasKey);
@@ -591,6 +698,7 @@ export function renderGame(ctx, game, interp) {
   for (const pu of game.powerUps) drawPowerUp(ctx, game, pu);
 
   drawSnake(ctx, game, interp);
+  drawFoodFlash(ctx, game);
 
   if (game.level.mechanics.sandstorm) drawSandstorm(ctx, game);
 

@@ -211,7 +211,7 @@ export function makeEndlessPseudoLevel() {
     obstacles: { placement: "random_valid", layout: null, types: [{ type: "rock", dangerous: true, count: 4 }] },
     powerUpPool: ["shield", "magnet", "double_points", "slow_time", "ghost"],
     powerUpSpawnRateMs: 10000,
-    mechanics: { ...BASE_MECHANICS },
+    mechanics: { ...BASE_MECHANICS, portals: true },
     starThresholds: null,
     unlocks: null
   };

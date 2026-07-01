@@ -27,30 +27,37 @@ function newGameFor(levelIdOrClassic) {
   const level = mode === "classic" ? makeClassicPseudoLevel()
     : mode === "endless" ? makeEndlessPseudoLevel()
     : getLevel(levelIdOrClassic);
-  const game = createGame({
+  return createGame({
     level,
     mode,
     skinId: SaveData.data.selectedSkin,
     difficulty: SaveData.data.settings.difficulty
   });
-  resizeToGame(game);
-  return game;
-}
-
-function resizeToGame(game) {
-  currentGame = game;
-  resize();
 }
 
 function startGame(levelIdOrClassic) {
   currentLevelId = levelIdOrClassic;
   currentGame = newGameFor(levelIdOrClassic);
+  resize();
   setHudSkinIcon(getSkin(currentGame.snake.skinId));
   StateMachine.setState(States.PLAYING);
 }
 
 function restartLevel() {
   startGame(currentLevelId);
+}
+
+// Music always matches the theme of whatever's on screen: the active level's theme while
+// playing/paused, or the calm menu track everywhere else (menus, game over, level complete).
+function currentMusicTheme() {
+  const playingOrPaused = StateMachine.current === States.PLAYING || StateMachine.current === States.PAUSED;
+  if (playingOrPaused && currentGame) return currentGame.level.theme;
+  return "menu";
+}
+
+function syncMusicForState() {
+  if (!SaveData.data.settings.musicOn) return;
+  AudioSys.startMusic(currentMusicTheme());
 }
 
 function handleGameEnded(game) {
@@ -148,7 +155,7 @@ initInput({
     AudioSys.ensureContext();
     AudioSys.resume();
     AudioSys.applySettings(SaveData.data.settings);
-    if (SaveData.data.settings.musicOn) AudioSys.startMusic();
+    syncMusicForState();
   }
 });
 
@@ -161,6 +168,7 @@ StateMachine.onChange((next) => {
   if (next === States.HIGH_SCORES) populateHighScores();
   if (next === States.SETTINGS) populateSettings();
   if (next === States.PLAYING) requestAnimationFrame(fullResize);
+  syncMusicForState();
 });
 
 document.addEventListener("click", (e) => {
@@ -212,8 +220,12 @@ document.addEventListener("click", (e) => {
 document.getElementById("setting-music").addEventListener("change", (e) => {
   SaveData.updateSettings({ musicOn: e.target.checked });
   AudioSys.applySettings(SaveData.data.settings);
-  if (e.target.checked) AudioSys.startMusic();
+  if (e.target.checked) syncMusicForState();
   else AudioSys.stopMusic();
+});
+document.getElementById("setting-music-volume").addEventListener("input", (e) => {
+  SaveData.updateSettings({ musicVolume: Number(e.target.value) / 100 });
+  AudioSys.applySettings(SaveData.data.settings);
 });
 document.getElementById("setting-sfx").addEventListener("change", (e) => {
   SaveData.updateSettings({ sfxOn: e.target.checked });

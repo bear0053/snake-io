@@ -13,6 +13,7 @@ const DEFAULT_SAVE = {
   settings: {
     musicOn: true,
     sfxOn: true,
+    musicVolume: 0.6,
     difficulty: "normal",
     controlType: "auto"
   }
@@ -87,6 +88,9 @@ class SaveStore {
     }
     if (skin.unlock.type === "complete_all_levels") {
       return allLevelIds.every(id => this.data.highScores.byLevel[String(id)]?.completed === true);
+    }
+    if (skin.unlock.type === "endless_score") {
+      return this.data.highScores.endless >= skin.unlock.target;
     }
     return false;
   }

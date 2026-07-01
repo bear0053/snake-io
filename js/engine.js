@@ -1,4 +1,4 @@
-import { Snake, makeFood, makePowerUp, makeObstacle, randomFreeCell, DIRS } from "./entities.js";
+import { Snake, makeFood, makePowerUp, makeObstacle, randomFreeCell, randomFreeCellNear, DIRS } from "./entities.js";
 import { FOOD_TYPES, pickWeightedFoodType } from "./foods.js";
 import { tickEffects, tryAbsorbCollision, hasActiveEffect, collectPowerUp } from "./powerups.js";
 import { detectFatalCollision, wrapPosition } from "./collision.js";
@@ -15,9 +15,49 @@ const FOOD_MIN_COUNT = 1;
 const FOOD_MAX_COUNT = 3;
 const FOOD_SPAWN_INTERVAL_MIN_MS = 1500;
 const FOOD_SPAWN_INTERVAL_MAX_MS = 4000;
+const KEY_SPAWN_DELAY_MIN_MS = 10000;
+const KEY_SPAWN_DELAY_MAX_MS = 30000;
+const KEY_LIFETIME_MIN_MS = 3000;
+const KEY_LIFETIME_MAX_MS = 7000;
+// Portals are a fun bonus mechanic rather than an urgent one, so they live much
+// longer than food/keys: enough time to notice and use them a few times before
+// they relocate, with a short breather before a new pair appears.
+const PORTAL_LIFETIME_MIN_MS = 15000;
+const PORTAL_LIFETIME_MAX_MS = 25000;
+const PORTAL_REGEN_DELAY_MIN_MS = 3000;
+const PORTAL_REGEN_DELAY_MAX_MS = 8000;
+// Odyssey Snake's "Navigator's Luck": every 6s, a 40% chance the next non-poison
+// food spawns within a short radius of the snake instead of anywhere on the board.
+const NAVIGATORS_LUCK_INTERVAL_MS = 6000;
+const NAVIGATORS_LUCK_CHANCE = 0.4;
+const NAVIGATORS_LUCK_RADIUS = 5;
+const FOOD_FLASH_DURATION_MS = 250;
+
+// Cached once instead of reallocated on every moving-hazard tick.
+const DIR_LIST = Object.values(DIRS);
+
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
 
 function randomFoodSpawnInterval() {
-  return FOOD_SPAWN_INTERVAL_MIN_MS + Math.random() * (FOOD_SPAWN_INTERVAL_MAX_MS - FOOD_SPAWN_INTERVAL_MIN_MS);
+  return randomBetween(FOOD_SPAWN_INTERVAL_MIN_MS, FOOD_SPAWN_INTERVAL_MAX_MS);
+}
+
+function randomKeySpawnDelay() {
+  return randomBetween(KEY_SPAWN_DELAY_MIN_MS, KEY_SPAWN_DELAY_MAX_MS);
+}
+
+function randomKeyLifetime() {
+  return randomBetween(KEY_LIFETIME_MIN_MS, KEY_LIFETIME_MAX_MS);
+}
+
+function randomPortalLifetime() {
+  return randomBetween(PORTAL_LIFETIME_MIN_MS, PORTAL_LIFETIME_MAX_MS);
+}
+
+function randomPortalRegenDelay() {
+  return randomBetween(PORTAL_REGEN_DELAY_MIN_MS, PORTAL_REGEN_DELAY_MAX_MS);
 }
 
 export function createGame({ level, mode, skinId, difficulty }) {
@@ -38,7 +78,6 @@ export function createGame({ level, mode, skinId, difficulty }) {
     portals: [],
     score: 0,
     foodCollected: 0,
-    startTime: performance.now(),
     elapsedMs: 0,
     objectiveProgress: 0,
     noHit: true,
@@ -46,10 +85,17 @@ export function createGame({ level, mode, skinId, difficulty }) {
     canvasCssSize: { width: 400, height: 400 },
     collisionFlash: { active: false, elapsedMs: 0, durationMs: 400 },
     levelTransition: { active: false, elapsedMs: 0, durationMs: 500 },
+    foodFlash: { active: false, elapsedMs: 0, durationMs: FOOD_FLASH_DURATION_MS },
     powerUpTimer: 0,
     endlessRampTimer: 0,
     foodSpawnTimer: 0,
     nextFoodSpawnMs: randomFoodSpawnInterval(),
+    keySpawnTimer: 0,
+    nextKeySpawnMs: randomKeySpawnDelay(),
+    portalCycleTimer: 0,
+    nextPortalCycleMs: randomPortalLifetime(),
+    navigatorsLuckTimer: 0,
+    navigatorsLuckPending: false,
     ended: false,
     endReason: null,
     comboWindowMs: 2500,
@@ -59,7 +105,7 @@ export function createGame({ level, mode, skinId, difficulty }) {
 
   placeObstacles(game);
   spawnFood(game);
-  if (adjLevel.objective?.type === "collect_key_reach_exit") spawnKeyAndExit(game);
+  if (adjLevel.objective?.type === "collect_key_reach_exit") spawnExit(game); // exit appears immediately; the key spawns on a delayed cycle (see updateKeySpawn)
   if (adjLevel.mechanics.portals) placePortals(game);
   return game;
 }
@@ -107,9 +153,23 @@ function initMovingObstacle(obs) {
 
 function spawnFood(game) {
   const typeDef = pickWeightedFoodType(game.level.foodTypes);
-  const cell = randomFreeCell(game.level.gridSize, occupiedCells(game));
+  let cell;
+  if (game.navigatorsLuckPending && !FOOD_TYPES[typeDef.type].isPoison) {
+    cell = randomFreeCellNear(game.snake.head(), game.level.gridSize, occupiedCells(game), NAVIGATORS_LUCK_RADIUS);
+    game.navigatorsLuckPending = false; // consumed by this non-poison spawn
+  } else {
+    cell = randomFreeCell(game.level.gridSize, occupiedCells(game));
+  }
   if (!cell) return;
   game.foods.push(makeFood(cell.x, cell.y, typeDef.type, typeDef.points));
+}
+
+function updateNavigatorsLuck(game, stepMs) {
+  if (game.snake.skinId !== "odyssey") return;
+  game.navigatorsLuckTimer += stepMs;
+  if (game.navigatorsLuckTimer < NAVIGATORS_LUCK_INTERVAL_MS) return;
+  game.navigatorsLuckTimer = 0;
+  if (Math.random() < NAVIGATORS_LUCK_CHANCE) game.navigatorsLuckPending = true;
 }
 
 function updateFoodLifecycle(game, stepMs) {
@@ -145,11 +205,37 @@ function updatePowerUpLifecycle(game) {
   game.powerUps = game.powerUps.filter(p => p.expiresAt > now);
 }
 
-function spawnKeyAndExit(game) {
-  const keyCell = randomFreeCell(game.level.gridSize, occupiedCells(game));
-  if (keyCell) game.key = { x: keyCell.x, y: keyCell.y };
+function spawnExit(game) {
   const exitCell = randomFreeCell(game.level.gridSize, occupiedCells(game));
   if (exitCell) game.exit = { x: exitCell.x, y: exitCell.y };
+}
+
+function spawnKey(game) {
+  const keyCell = randomFreeCell(game.level.gridSize, occupiedCells(game));
+  if (!keyCell) return;
+  game.key = { x: keyCell.x, y: keyCell.y, expiresAt: performance.now() + randomKeyLifetime() };
+}
+
+// Keys don't sit on the board permanently: spawn after a random 10-30s delay, then
+// vanish after a random 3-7s if not collected, repeating until the player grabs one
+// (or dies). Applies to any level whose objective is collect_key_reach_exit.
+function updateKeySpawn(game, stepMs) {
+  if (game.level.objective?.type !== "collect_key_reach_exit" || game.hasKey) return;
+
+  if (game.key) {
+    if (performance.now() >= game.key.expiresAt) {
+      game.key = null;
+      game.keySpawnTimer = 0;
+      game.nextKeySpawnMs = randomKeySpawnDelay();
+    }
+    return;
+  }
+
+  game.keySpawnTimer += stepMs;
+  if (game.keySpawnTimer >= game.nextKeySpawnMs) {
+    game.keySpawnTimer = 0;
+    spawnKey(game);
+  }
 }
 
 function placePortals(game) {
@@ -162,6 +248,26 @@ function placePortals(game) {
     return;
   }
   game.portals.push({ x: b.x, y: b.y });
+}
+
+// Portals aren't permanent fixtures: once active they stick around for a while
+// (long enough to actually find and use), then vanish and relocate elsewhere
+// after a short breather, repeating for the rest of the level/run. Applies to
+// every level/mode with mechanics.portals enabled (Cyber Grid, Endless Mode).
+function updatePortalCycle(game, stepMs) {
+  if (!game.level.mechanics.portals) return;
+
+  game.portalCycleTimer += stepMs;
+  if (game.portalCycleTimer < game.nextPortalCycleMs) return;
+  game.portalCycleTimer = 0;
+
+  if (game.portals.length === 2) {
+    game.portals = [];
+    game.nextPortalCycleMs = randomPortalRegenDelay();
+  } else {
+    placePortals(game);
+    game.nextPortalCycleMs = randomPortalLifetime();
+  }
 }
 
 function endGame(game, reason) {
@@ -200,6 +306,11 @@ function handleFoodCollected(game, food) {
   AudioSys.playSfx("food");
   game.foodCollected++;
   game.snake.pendingGrowth += foodDef.growth;
+
+  if (game.snake.skinId === "odyssey") {
+    game.foodFlash.active = true;
+    game.foodFlash.elapsedMs = 0;
+  }
 
   const now = performance.now();
   game.comboCount = (game.lastFoodAt && now - game.lastFoodAt < game.comboWindowMs) ? game.comboCount + 1 : 0;
@@ -282,7 +393,6 @@ function updateLasers(game) {
 
 function updateMovingHazards(game, stepMs) {
   if (!game.level.mechanics.movingHazards) return;
-  const dirs = Object.values(DIRS);
   for (const obs of game.obstacles) {
     if (!obs.moving) continue;
     obs.moveAccumulator += stepMs;
@@ -290,7 +400,7 @@ function updateMovingHazards(game, stepMs) {
     obs.moveAccumulator = 0;
 
     if (!obs.dir || Math.random() < 0.35) {
-      obs.dir = dirs[Math.floor(Math.random() * dirs.length)];
+      obs.dir = DIR_LIST[Math.floor(Math.random() * DIR_LIST.length)];
     }
     const nx = obs.x + obs.dir.x;
     const ny = obs.y + obs.dir.y;
@@ -300,7 +410,7 @@ function updateMovingHazards(game, stepMs) {
       game.snake.segments.some(s => s.x === nx && s.y === ny);
 
     if (blocked) {
-      obs.dir = dirs[Math.floor(Math.random() * dirs.length)];
+      obs.dir = DIR_LIST[Math.floor(Math.random() * DIR_LIST.length)];
       continue;
     }
     obs.x = nx;
@@ -373,6 +483,9 @@ export function tickGame(game, stepMs) {
   game.elapsedMs += stepMs;
   updateFoodLifecycle(game, stepMs);
   updatePowerUpLifecycle(game);
+  updateKeySpawn(game, stepMs);
+  updatePortalCycle(game, stepMs);
+  updateNavigatorsLuck(game, stepMs);
   game.powerUpTimer += stepMs;
   if (game.powerUpTimer >= game.level.powerUpSpawnRateMs) {
     game.powerUpTimer = 0;
@@ -387,6 +500,13 @@ export function tickGame(game, stepMs) {
 }
 
 // --- Persistent RAF loop --------------------------------------------------
+
+// collisionFlash/levelTransition/foodFlash all share the same {active, elapsedMs, durationMs} shape.
+function advanceFlash(flash, delta) {
+  if (!flash.active) return;
+  flash.elapsedMs += delta;
+  if (flash.elapsedMs >= flash.durationMs) flash.active = false;
+}
 
 export function createGameLoop({ ctx, render, isActive, getStepMs, getGame, onEnded }) {
   let lastTime = 0;
@@ -414,14 +534,9 @@ export function createGameLoop({ ctx, render, isActive, getStepMs, getGame, onEn
       }
     }
 
-    if (game.collisionFlash.active) {
-      game.collisionFlash.elapsedMs += delta;
-      if (game.collisionFlash.elapsedMs >= game.collisionFlash.durationMs) game.collisionFlash.active = false;
-    }
-    if (game.levelTransition.active) {
-      game.levelTransition.elapsedMs += delta;
-      if (game.levelTransition.elapsedMs >= game.levelTransition.durationMs) game.levelTransition.active = false;
-    }
+    advanceFlash(game.collisionFlash, delta);
+    advanceFlash(game.levelTransition, delta);
+    advanceFlash(game.foodFlash, delta);
 
     render(game, accumulator / stepMs);
   }

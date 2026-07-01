@@ -104,6 +104,7 @@ export function populateHighScores() {
 
 export function populateSettings() {
   document.getElementById("setting-music").checked = SaveData.data.settings.musicOn;
+  document.getElementById("setting-music-volume").value = Math.round(SaveData.data.settings.musicVolume * 100);
   document.getElementById("setting-sfx").checked = SaveData.data.settings.sfxOn;
   document.getElementById("setting-difficulty").value = SaveData.data.settings.difficulty;
   document.getElementById("setting-controls").value = SaveData.data.settings.controlType;
