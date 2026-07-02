@@ -9,9 +9,13 @@ const KEY_MAP = {
 
 const SWIPE_THRESHOLD = 22;
 
-export function initInput({ canvas, dpad, game, StateMachine, onPauseToggle, onFirstGesture }) {
+export function initInput({ canvas, dpad, game, StateMachine, onPauseToggle, onFirstGesture, onAnyGesture }) {
   let gestureFired = false;
   const fireFirstGesture = () => {
+    // Runs on every interaction, not just the first: iOS Safari can suspend/interrupt the
+    // AudioContext mid-session (phone calls, Siri, backgrounding), and resuming it requires
+    // a fresh user gesture each time - not just the very first one ever.
+    onAnyGesture?.();
     if (gestureFired) return;
     gestureFired = true;
     onFirstGesture?.();

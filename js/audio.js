@@ -47,7 +47,12 @@ class AudioManager {
   }
 
   resume() {
-    if (this.#ctx && this.#ctx.state === "suspended") this.#ctx.resume();
+    // iOS Safari has a third state beyond the spec's "suspended"/"running" - "interrupted" -
+    // entered after phone calls, Siri, Control Center audio, or the app being backgrounded.
+    // Missing that state here would leave audio silently dead for the rest of the session.
+    if (this.#ctx && (this.#ctx.state === "suspended" || this.#ctx.state === "interrupted")) {
+      this.#ctx.resume();
+    }
   }
 
   applySettings({ musicOn, sfxOn, musicVolume }) {

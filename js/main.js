@@ -156,7 +156,14 @@ initInput({
     AudioSys.resume();
     AudioSys.applySettings(SaveData.data.settings);
     syncMusicForState();
-  }
+  },
+  onAnyGesture: () => AudioSys.resume()
+});
+
+// iOS Safari can also suspend/interrupt audio while the tab is backgrounded; try to
+// recover as soon as the page becomes visible again (in addition to on the next gesture).
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) AudioSys.resume();
 });
 
 // --- Screen navigation -----------------------------------------------------------
