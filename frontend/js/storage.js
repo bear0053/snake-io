@@ -151,13 +151,6 @@ class SaveStore {
     return false;
   }
 
-  unlockSkin(skinId) {
-    if (!this.data.unlockedSkins.includes(skinId)) {
-      this.data.unlockedSkins.push(skinId);
-      this.save();
-    }
-  }
-
   selectSkin(skinId) {
     this.data.selectedSkin = skinId;
     this.save();

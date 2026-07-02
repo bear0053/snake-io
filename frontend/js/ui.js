@@ -8,6 +8,15 @@ import { ACHIEVEMENTS } from "./achievements.js";
 
 const ALL_LEVEL_IDS = LEVELS.map(l => l.id);
 
+// Player-supplied display names are the only untrusted strings this file ever puts into
+// innerHTML (everything else - level/skin/achievement names, error text - comes from our
+// own hardcoded registries or backend error-code lookups) - escape before interpolating.
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 const els = {
   hud: document.getElementById("hud"),
   dpad: document.getElementById("dpad"),
@@ -260,7 +269,7 @@ export function populateLeaderboard(entries, currentUid) {
     const card = document.createElement("div");
     card.className = "card" + (entry.playerId === currentUid ? " selected" : "");
     card.innerHTML = `
-      <div class="card-title">#${entry.rank} ${entry.displayName}${entry.playerId === currentUid ? " (you)" : ""}</div>
+      <div class="card-title">#${entry.rank} ${escapeHtml(entry.displayName)}${entry.playerId === currentUid ? " (you)" : ""}</div>
       <div class="card-title">${entry.score}</div>
     `;
     list.appendChild(card);

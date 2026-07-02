@@ -646,15 +646,6 @@ function drawCollisionFlash(ctx, game) {
   ctx.restore();
 }
 
-function drawLevelTransition(ctx, game) {
-  if (!game.levelTransition.active) return;
-  const t = Math.min(1, game.levelTransition.elapsedMs / game.levelTransition.durationMs);
-  const alpha = t < 0.5 ? t * 2 : (1 - t) * 2;
-  const { width, height } = game.canvasCssSize;
-  ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-  ctx.fillRect(0, 0, width, height);
-}
-
 export const themeRenderers = {
   garden: { drawBackground: drawGradientBackground, drawObstacle: drawGardenObstacle },
   desert: { drawBackground: drawGradientBackground, drawObstacle: drawDesertObstacle },
@@ -703,5 +694,4 @@ export function renderGame(ctx, game, interp) {
   if (game.level.mechanics.sandstorm) drawSandstorm(ctx, game);
 
   drawCollisionFlash(ctx, game);
-  drawLevelTransition(ctx, game);
 }

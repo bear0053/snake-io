@@ -17,8 +17,6 @@ export const States = Object.freeze({
   LEVEL_COMPLETE: "screen-level-complete"
 });
 
-const OVERLAY_STATES = new Set(Object.values(States).filter(s => s !== States.PLAYING));
-
 class GameStateMachine {
   #current = States.MENU;
   #listeners = [];
@@ -35,10 +33,6 @@ class GameStateMachine {
     const prev = this.#current;
     this.#current = next;
     for (const fn of this.#listeners) fn(next, prev, payload);
-  }
-
-  isOverlay(state) {
-    return OVERLAY_STATES.has(state);
   }
 }
 

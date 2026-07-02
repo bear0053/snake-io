@@ -84,7 +84,6 @@ export function createGame({ level, mode, skinId, difficulty }) {
     cellPx: 20,
     canvasCssSize: { width: 400, height: 400 },
     collisionFlash: { active: false, elapsedMs: 0, durationMs: 400 },
-    levelTransition: { active: false, elapsedMs: 0, durationMs: 500 },
     foodFlash: { active: false, elapsedMs: 0, durationMs: FOOD_FLASH_DURATION_MS },
     powerUpTimer: 0,
     endlessRampTimer: 0,
@@ -501,7 +500,7 @@ export function tickGame(game, stepMs) {
 
 // --- Persistent RAF loop --------------------------------------------------
 
-// collisionFlash/levelTransition/foodFlash all share the same {active, elapsedMs, durationMs} shape.
+// collisionFlash/foodFlash share the same {active, elapsedMs, durationMs} shape.
 function advanceFlash(flash, delta) {
   if (!flash.active) return;
   flash.elapsedMs += delta;
@@ -535,7 +534,6 @@ export function createGameLoop({ ctx, render, isActive, getStepMs, getGame, onEn
     }
 
     advanceFlash(game.collisionFlash, delta);
-    advanceFlash(game.levelTransition, delta);
     advanceFlash(game.foodFlash, delta);
 
     render(game, accumulator / stepMs);
