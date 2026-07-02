@@ -180,7 +180,12 @@ async function handleGameEnded(game) {
   let accepted = true;
   let cloudNote = null;
 
-  if (hasRealAuthSession() && currentSessionId) {
+  // Submit whenever a session was actually created for this run. Deliberately not also
+  // re-checking hasRealAuthSession() here - the backend independently verifies the
+  // session belongs to the caller, so a second, redundant *current*-auth-state check here
+  // adds nothing except a way for this to disagree with the session that was actually
+  // created at the start of the run.
+  if (currentSessionId) {
     const sessionId = currentSessionId;
     currentSessionId = null;
     try {
@@ -479,6 +484,7 @@ async function loadLeaderboard(mode) {
 }
 
 let guestOverrideActive = false; // test-only; see window.__debug.setGuestOverride below
+let authStateSyncInFlight = null;
 
 // Spec 10.1, 12: fetches/creates the cloud profile on sign-in and caches it locally
 // (SaveData.enterCloudMode), or restores the guest store on sign-out (exitCloudMode).
@@ -496,27 +502,38 @@ async function handleAuthStateChange(user) {
   }
   if (!backendApi) return;
 
-  try {
-    const { profile, isNewAccount } = await backendApi.getOrCreatePlayerProfile();
-    if (isNewAccount) {
-      const guestSnapshot = SaveData.guestData;
-      try {
-        const { imported } = await backendApi.importGuestData({
-          classicHighScore: guestSnapshot.highScores.classic,
-          endlessHighScore: guestSnapshot.highScores.endless,
-          settings: guestSnapshot.settings
-        });
-        if (imported.classicHighScore !== undefined) profile.highScores.classic = imported.classicHighScore;
-        if (imported.endlessHighScore !== undefined) profile.highScores.endless = imported.endlessHighScore;
-        if (imported.settings) profile.settings = { ...profile.settings, ...imported.settings };
-      } catch (err) {
-        console.warn("Guest data import failed", err);
+  // This listener can fire more than once in quick succession for a single sign-in
+  // (Firebase's own onAuthStateChanged, plus signUpEmail's manual re-emit once
+  // updateProfile's displayName/photoURL land) - without this guard, two overlapping
+  // getOrCreatePlayerProfile()+enterCloudMode() calls can race each other (observed
+  // directly: occasionally left SaveData stuck in guest mode after a real sign-up).
+  if (authStateSyncInFlight) return authStateSyncInFlight;
+  authStateSyncInFlight = (async () => {
+    try {
+      const { profile, isNewAccount } = await backendApi.getOrCreatePlayerProfile();
+      if (isNewAccount) {
+        const guestSnapshot = SaveData.guestData;
+        try {
+          const { imported } = await backendApi.importGuestData({
+            classicHighScore: guestSnapshot.highScores.classic,
+            endlessHighScore: guestSnapshot.highScores.endless,
+            settings: guestSnapshot.settings
+          });
+          if (imported.classicHighScore !== undefined) profile.highScores.classic = imported.classicHighScore;
+          if (imported.endlessHighScore !== undefined) profile.highScores.endless = imported.endlessHighScore;
+          if (imported.settings) profile.settings = { ...profile.settings, ...imported.settings };
+        } catch (err) {
+          console.warn("Guest data import failed", err);
+        }
       }
+      SaveData.enterCloudMode(profile);
+    } catch (err) {
+      console.warn("Failed to load cloud profile, account bar will show signed-in but progress may be stale", err);
+    } finally {
+      authStateSyncInFlight = null;
     }
-    SaveData.enterCloudMode(profile);
-  } catch (err) {
-    console.warn("Failed to load cloud profile, account bar will show signed-in but progress may be stale", err);
-  }
+  })();
+  return authStateSyncInFlight;
 }
 
 function guestUnlockUpsell(levelIdOrClassic, score) {

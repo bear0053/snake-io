@@ -49,6 +49,11 @@ firebase emulators:start --only functions,firestore,auth --project snake-odyssey
 The Emulator UI runs at `http://127.0.0.1:4000`. No real Firebase credentials or network
 access are needed for local emulator testing.
 
+For automated testing against these emulators (not just manual poking), see `pytest tests/
+--cloud` in the root README / `.claude/skills/run/SKILL.md` - `tests/cloud/conftest.py`
+starts/stops the emulators itself (including the JDK detection and CA-cert workaround
+below), so you don't need to run the command above by hand for that.
+
 ## Deployment
 
 ```bash
@@ -85,3 +90,13 @@ being sufficient.
 - The Cloud Functions emulator can occasionally report
   `Cannot determine backend specification. Timeout after 10000ms` on a slow first load -
   set `FUNCTIONS_DISCOVERY_TIMEOUT=60000` (or higher) before starting the emulators.
+- **Each callable function needs its own CORS warm-up from a real browser, not just a
+  listening port.** A plain GET/POST succeeding doesn't mean a browser's actual preflight
+  OPTIONS request will - the first real preflight to a freshly-started emulator
+  intermittently comes back with no `Access-Control-Allow-Origin` header at all, and this
+  was observed independently *per function* (warming up `getOrCreatePlayerProfile` didn't
+  warm up `importGuestData`, called moments later in the same sign-up flow). `tests/cloud/
+  conftest.py`'s `firebase_emulators` fixture warms up all six functions individually with
+  real OPTIONS preflights (requiring several consecutive successes each) before yielding -
+  copy that approach rather than a bare "wait for the port" check if you're scripting
+  against the emulators yourself.

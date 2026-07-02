@@ -75,6 +75,58 @@ def snapshot(page, js_expression):
     return page.evaluate(f"() => {{ const g = window.__debug.getGame(); return {js_expression}; }}")
 
 
+def unique_email(prefix="emutest"):
+    """Firebase emulator Auth state is fresh per test session (no persistence across
+    pytest runs), but a unique email per test still avoids collisions within a session."""
+    return f"{prefix}-{int(time.time() * 1000)}@example.com"
+
+
+def sign_up(page, email, password, name="Cloud Tester"):
+    """Cloud suite only (tests/cloud/) - requires the emulator-connected `page` fixture."""
+    page.click("#menu-account-btn")
+    page.wait_for_selector("#screen-sign-in:not(.hidden)")
+    page.click('.screen:not(.hidden) [data-nav="screen-sign-up"]')
+    page.wait_for_selector("#screen-sign-up:not(.hidden)")
+    page.fill("#sign-up-name", name)
+    page.fill("#sign-up-email", email)
+    page.fill("#sign-up-password", password)
+    page.click('#screen-sign-up button[type="submit"]')
+    page.wait_for_selector("#screen-menu:not(.hidden)", timeout=25000)
+    _wait_for_cloud_mode(page)
+
+
+def sign_in(page, email, password):
+    """Cloud suite only (tests/cloud/) - requires the emulator-connected `page` fixture."""
+    page.click("#menu-account-btn")
+    page.wait_for_selector("#screen-sign-in:not(.hidden)")
+    page.fill("#sign-in-email", email)
+    page.fill("#sign-in-password", password)
+    page.click('#sign-in-form button[type="submit"]')
+    page.wait_for_selector("#screen-menu:not(.hidden)", timeout=25000)
+    _wait_for_cloud_mode(page)
+
+
+def _wait_for_cloud_mode(page, timeout_ms=15000, interval_ms=100):
+    """Polls for the real condition sign_up/sign_in need (getOrCreatePlayerProfile +
+    optional guest-data import has finished and SaveData has switched into cloud mode)
+    instead of guessing a fixed settle delay - see the `run` skill on preferring polling
+    over fixed sleeps."""
+    deadline = time.time() + timeout_ms / 1000
+    while time.time() < deadline:
+        if page.evaluate("() => window.__debug.saveData.mode") == "cloud":
+            return True
+        page.wait_for_timeout(interval_ms)
+    return False
+
+
+def sign_out(page):
+    """Cloud suite only (tests/cloud/) - requires the emulator-connected `page` fixture."""
+    page.click("#menu-account-btn")
+    page.wait_for_selector("#screen-account:not(.hidden)")
+    page.click('[data-action="sign-out"]')
+    page.wait_for_timeout(500)
+
+
 def wait_until(page, condition_expr, timeout_ms=2000, interval_ms=20):
     """Polls a JS boolean expression (operating on `g`) until true or timeout, instead of
     guessing a fixed sleep duration. Tick timing is real wall-clock in the browser and a

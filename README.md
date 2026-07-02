@@ -132,13 +132,14 @@ pip install pytest playwright   # one-time; do NOT run `playwright install` (see
 pytest tests/
 ```
 
-It drives the game the way a player would (clicking through menus, pressing keys) plus, for assertions that need exact game state, a small debug hook (`window.__debug`) that `frontend/js/main.js` exposes *only* when served from `localhost`/`127.0.0.1` — it's absent in production. The suite starts its own dev server, so `pytest tests/` works standalone. Tests that need an "authenticated" player use `window.__debug.setGuestOverride()` (see `tests/helpers.py:set_authenticated`) rather than signing into real Firebase - it's a local override, not a substitute for testing the backend itself (see `backend/README.md` for Cloud Functions emulator testing).
+It drives the game the way a player would (clicking through menus, pressing keys) plus, for assertions that need exact game state, a small debug hook (`window.__debug`) that `frontend/js/main.js` exposes *only* when served from `localhost`/`127.0.0.1` — it's absent in production. The suite starts its own dev server, so `pytest tests/` works standalone. Tests that need an "authenticated" player use `window.__debug.setGuestOverride()` (see `tests/helpers.py:set_authenticated`) rather than signing into real Firebase - fast, but only fakes local UI/gating state, never touches the backend.
+
+For that, there's a separate opt-in suite against the real Cloud Functions/Firestore/Auth (via the local emulators, not production): `pytest tests/ --cloud` (requires Node 20+, a JDK 21+, and the Firebase CLI - see `.claude/skills/run/SKILL.md` and `backend/README.md`).
 
 ## Roadmap
 
-Everything in the original Phase 1/2 design spec's core feature list is implemented. Phase 3 (cloud accounts, server-validated progression, leaderboards, achievements) is implemented and deployed - see `Odyssey-Snake-Phase3v1.rtf` for the full spec. Still to come:
+Everything in the original Phase 1/2 design spec's core feature list is implemented. Phase 3 (cloud accounts, server-validated progression, leaderboards, achievements, and a Firebase-emulator-backed test suite) is implemented and deployed - see `Odyssey-Snake-Phase3v1.rtf` for the full spec. Still to come:
 
-- Firebase emulators wired into the pytest suite (currently a debug-hook override simulates "authenticated" for UI/gating tests, but doesn't exercise the real backend)
 - Daily challenge mode
 - Multiplayer snake battle
 - Boss levels

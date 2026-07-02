@@ -81,3 +81,24 @@ def _no_console_errors(page):
     """Every test automatically fails if the page threw a JS error, unless it opts out."""
     yield
     assert page.snake_console_errors == [], f"Unexpected console/page errors: {page.snake_console_errors}"
+
+
+# --- Opt-in cloud suite (tests/cloud/) --------------------------------------------------
+# Firebase-emulator-backed tests are skipped by default so plain `pytest tests/` stays fast
+# and dependency-free (no Node/JDK/Firebase CLI required). Pass --cloud to run them - see
+# tests/cloud/conftest.py and .claude/skills/run/SKILL.md.
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--cloud", action="store_true", default=False,
+        help="Also run tests/cloud/ (requires Node 20+, a JDK 21+, and the Firebase CLI - see .claude/skills/run/SKILL.md)"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--cloud"):
+        return
+    skip_cloud = pytest.mark.skip(reason="requires --cloud (Firebase emulators) - not run by default, see .claude/skills/run/SKILL.md")
+    for item in items:
+        if "cloud" in item.path.parts:
+            item.add_marker(skip_cloud)

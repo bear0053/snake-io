@@ -5,6 +5,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
 import {
   getAuth,
+  connectAuthEmulator,
   GoogleAuthProvider,
   signInWithPopup,
   createUserWithEmailAndPassword,
@@ -19,6 +20,12 @@ import { firebaseConfig } from "./firebase-config.js";
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+// Set only by the tests/cloud/ Playwright fixture (page.add_init_script), before any page
+// script runs - never true in production or normal local dev, so this can't accidentally
+// point a real player's session at a local emulator. See .claude/skills/run/SKILL.md.
+if (window.__USE_FIREBASE_EMULATORS__) {
+  connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
+}
 const persistenceReady = setPersistence(auth, browserLocalPersistence);
 
 let currentUser = null;

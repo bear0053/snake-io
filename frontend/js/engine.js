@@ -97,6 +97,7 @@ export function createGame({ level, mode, skinId, difficulty }) {
     navigatorsLuckPending: false,
     ended: false,
     endReason: null,
+    endNotified: false, // guards against createGameLoop calling onEnded more than once
     comboWindowMs: 2500,
     lastFoodAt: null,
     comboCount: 0
@@ -528,7 +529,16 @@ export function createGameLoop({ ctx, render, isActive, getStepMs, getGame, onEn
       accumulator -= stepMs;
       if (game.ended) {
         accumulator = 0;
-        onEnded(game);
+        // onEnded (main.js's handleGameEnded) is async - it awaits a backend call before
+        // transitioning state away from PLAYING, so isActive() stays true and game.ended
+        // stays true across several more animation frames while that's in flight. Without
+        // this guard, onEnded fires again on every one of those frames (observed directly:
+        // a second, synchronous-looking call would race ahead of the first's pending
+        // backend validation and record an unvalidated result).
+        if (!game.endNotified) {
+          game.endNotified = true;
+          onEnded(game);
+        }
         break;
       }
     }
