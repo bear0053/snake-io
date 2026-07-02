@@ -27,6 +27,8 @@ export function initInput({ canvas, dpad, game, StateMachine, onPauseToggle, onF
   }
 
   document.addEventListener("keydown", (e) => {
+    const target = e.target;
+    if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable) return;
     fireFirstGesture();
     if (KEY_MAP[e.code]) {
       requestDirection(KEY_MAP[e.code]);
