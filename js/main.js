@@ -259,3 +259,11 @@ populateSettings();
 applyDpadVisibility();
 StateMachine.setState(States.MENU);
 fullResize();
+
+// --- Debug hook (test-only) --------------------------------------------------
+// Exposed only when served locally - never in production (GitHub Pages serves from
+// a different hostname) - so the automated suite in tests/ can drive and inspect
+// game state directly instead of only clicking through the DOM. See the `run` skill.
+if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+  window.__debug = { getGame: () => currentGame, startGame, currentMusicTheme, saveData: SaveData, StateMachine, States };
+}

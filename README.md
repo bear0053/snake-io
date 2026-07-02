@@ -87,13 +87,28 @@ js/
   storage.js                   localStorage save/load for progress and settings
   ui.js                         Screen population and HUD updates
   resize.js                      Responsive canvas sizing
+tests/                How to serve and browser-test this project (Playwright + system Chrome)
+  conftest.py          Shared fixtures: dev server, browser, and a fresh page per test
+  helpers.py            Save-data builders and debug-hook helpers (see Testing, below)
+  test_*.py              Test modules by area (navigation, food/power-ups, level mechanics, skins, audio/settings, progression)
 .claude/skills/
-  run/                 How to serve and browser-test this project (Playwright + system Chrome)
+  run/                 How to serve/test this project and run the suite (Playwright + system Chrome)
   cleanup/             Whole-codebase tech-debt/quality review process
   push/                Commit + push shortcut with safety guardrails
 ```
 
 Levels, skins, food types, and power-ups are each a flat data registry consumed by generic engine/render code — adding new content is a data addition, not a rewrite.
+
+## Testing
+
+The game itself has zero dependencies, but there's a separate, dev-only pytest + Playwright regression suite:
+
+```bash
+pip install pytest playwright   # one-time; do NOT run `playwright install` (see .claude/skills/run/SKILL.md)
+pytest tests/
+```
+
+It drives the game the way a player would (clicking through menus, pressing keys) plus, for assertions that need exact game state, a small debug hook (`window.__debug`) that `js/main.js` exposes *only* when served from `localhost`/`127.0.0.1` — it's absent in production. The suite starts its own dev server, so `pytest tests/` works standalone.
 
 ## Roadmap
 
