@@ -12,9 +12,12 @@ import {
   showState, setDpadVisible, populateLevelSelect, populateSnakeSelect,
   populateHighScores, populateSettings, updateHud, setHudSkinIcon,
   showGameOverStats, showLevelCompleteStats, computeStars,
-  updateAccountBar, showAccountDetails, populateAvatarPicker, showFormError, clearFormError
+  updateAccountBar, showAccountDetails, populateAvatarPicker, showFormError, clearFormError,
+  setFeatureLockedContent, setLeaderboardModeActive, populateLeaderboard, showLeaderboardError,
+  populateAchievements
 } from "./ui.js";
 import { AVATARS } from "./avatars.js";
+import { getAchievement } from "./achievements.js";
 
 const canvas = document.getElementById("game-canvas");
 const ctx = canvas.getContext("2d");
@@ -49,6 +52,7 @@ function newGameFor(levelIdOrClassic) {
 
 let currentSessionId = null;
 let gameStarting = false;
+let leaderboardMode = "classic";
 
 // Spec 19.2, 26.2: authenticated runs need a backend-created session before gameplay can
 // begin and affect trusted progression; guests (and the test-only guest override, which
@@ -189,11 +193,21 @@ async function handleGameEnded(game) {
       accepted = result.accepted;
       if (!accepted) {
         cloudNote = result.reason || "We couldn't validate this run, so it was not saved to your cloud profile.";
-      } else if (result.flagged) {
-        cloudNote = "This run is under review, so it won't count toward the leaderboard yet.";
-      } else if (result.newlyUnlockedSkins?.length) {
-        const names = result.newlyUnlockedSkins.map(id => getSkin(id).name).join(", ");
-        cloudNote = `${names} unlocked!`;
+      } else {
+        if (result.newlyEarnedAchievements?.length) SaveData.addAchievements(result.newlyEarnedAchievements);
+        if (result.flagged) {
+          cloudNote = "This run is under review, so it won't count toward the leaderboard yet.";
+        } else {
+          const parts = [];
+          if (result.newlyUnlockedSkins?.length) {
+            parts.push(`${result.newlyUnlockedSkins.map(id => getSkin(id).name).join(", ")} unlocked!`);
+          }
+          if (result.newlyEarnedAchievements?.length) {
+            const names = result.newlyEarnedAchievements.map(id => getAchievement(id)?.name ?? id).join(", ");
+            parts.push(`Achievement earned: ${names}`);
+          }
+          if (parts.length) cloudNote = parts.join(" ");
+        }
       }
     } catch (err) {
       accepted = false;
@@ -278,6 +292,8 @@ StateMachine.onChange((next) => {
     populateAvatarPicker(selectedAvatarId, (id) => { selectedAvatarId = id; });
   }
   if (next === States.ACCOUNT && authApi?.AuthState.user) showAccountDetails(authApi.AuthState.user);
+  if (next === States.LEADERBOARD) loadLeaderboard(leaderboardMode);
+  if (next === States.ACHIEVEMENTS) populateAchievements();
   if (next === States.PLAYING) requestAnimationFrame(fullResize);
   syncMusicForState();
 });
@@ -324,7 +340,31 @@ document.addEventListener("click", (e) => {
       break;
     }
     case "nav-level-select":
-      StateMachine.setState(isGuest() ? States.LEVEL_LOCKED : States.LEVEL_SELECT);
+      navigateToGatedFeature(
+        "Level Mode",
+        "Level Mode saves your progress, unlocks new snakes, and tracks achievements. Sign in with a free account to begin your adventure.",
+        States.LEVEL_SELECT
+      );
+      break;
+    case "nav-leaderboard":
+      navigateToGatedFeature(
+        "Leaderboard",
+        "Leaderboards are for signed-in players only. Sign in with a free account to see how you stack up.",
+        States.LEADERBOARD
+      );
+      break;
+    case "nav-achievements":
+      navigateToGatedFeature(
+        "Achievements",
+        "Achievements are tracked for signed-in players only. Sign in with a free account to start earning them.",
+        States.ACHIEVEMENTS
+      );
+      break;
+    case "leaderboard-classic":
+      loadLeaderboard("classic");
+      break;
+    case "leaderboard-endless":
+      loadLeaderboard("endless");
       break;
     case "sign-in-google":
       handleSignInGoogle();
@@ -409,6 +449,33 @@ function isGuest() {
 
 function hasRealAuthSession() {
   return !!authApi?.AuthState.user;
+}
+
+// Spec 8.3, 13.1, 21.1: Level Mode, the leaderboard, and achievements are all
+// authenticated-only - guests land on the shared "sign in to unlock this" screen.
+function navigateToGatedFeature(title, message, unlockedState) {
+  if (isGuest()) {
+    setFeatureLockedContent(title, message);
+    StateMachine.setState(States.FEATURE_LOCKED);
+  } else {
+    StateMachine.setState(unlockedState);
+  }
+}
+
+async function loadLeaderboard(mode) {
+  leaderboardMode = mode;
+  setLeaderboardModeActive(mode);
+  if (!backendApi || !hasRealAuthSession()) {
+    showLeaderboardError("Leaderboard is currently unavailable.");
+    return;
+  }
+  try {
+    const { entries } = await backendApi.getLeaderboard({ mode });
+    populateLeaderboard(entries, authApi?.AuthState.user?.uid ?? null);
+  } catch (err) {
+    console.warn("Failed to load leaderboard", err);
+    showLeaderboardError(backendApi.backendErrorMessage(err));
+  }
 }
 
 let guestOverrideActive = false; // test-only; see window.__debug.setGuestOverride below

@@ -20,10 +20,13 @@ functions/
   src/
     admin.js                   Firebase Admin SDK init (Firestore handle)
     gameData.js                 Minimal server-side mirror of level/skin unlock rules
-                                 from frontend/js/levels.js + snakes.js - keep in sync
-                                 if those change
+                                 from frontend/js/levels.js + snakes.js (keep in sync if
+                                 those change) plus the achievement definitions (no
+                                 frontend equivalent - see frontend/js/achievements.js
+                                 for display-only metadata)
     validation.js                Heuristic score/session plausibility checks
-    unlocks.js                    Computes newly-earned skin unlocks from profile state
+    unlocks.js                    Computes newly-earned skin unlocks and achievements
+                                    from profile state
     helpers.js                     requireAuth / profile-lookup / account-status guards
     audit.js                       Audit log + risk-score writes
     profile.js                      getOrCreatePlayerProfile, selectSnake

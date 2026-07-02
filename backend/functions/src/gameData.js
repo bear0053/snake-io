@@ -33,3 +33,16 @@ export const SKIN_UNLOCK_RULES = [
 ];
 
 export const ALL_SKIN_IDS = ["default", "fire", "ice", "cyber", "golden", "odyssey"];
+
+// Achievements are server-computed only (unlike skins, the frontend has no local copy
+// of the check logic - lifetimeStats only exist authoritatively on the cloud profile).
+// The frontend mirrors just the id/name/description for display in frontend/js/achievements.js.
+export const ACHIEVEMENTS = [
+  { id: "first_bite", name: "First Bite", check: (p) => p.lifetimeStats.totalFoodCollected >= 1 },
+  { id: "century_club", name: "Century Club", check: (p) => p.lifetimeStats.totalFoodCollected >= 100 },
+  { id: "first_steps", name: "First Steps", check: (p) => Object.values(p.highScores.byLevel).some(r => r?.completed) },
+  { id: "world_explorer", name: "World Explorer", check: (p) => ALL_LEVEL_IDS.every(id => p.highScores.byLevel[String(id)]?.completed) },
+  { id: "snake_collector", name: "Snake Collector", check: (p) => ALL_SKIN_IDS.every(id => p.unlockedSkins.includes(id)) },
+  { id: "endless_legend", name: "Endless Legend", check: (p) => p.highScores.endless >= 1000 },
+  { id: "dedicated", name: "Dedicated", check: (p) => p.lifetimeStats.totalRuns >= 25 }
+];

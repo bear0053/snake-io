@@ -3,7 +3,7 @@ import { db, FieldValue } from "./admin.js";
 import { requireAuth, requireActiveAccount } from "./helpers.js";
 import { LEVELS, ALL_LEVEL_IDS } from "./gameData.js";
 import { validateResult, sessionExpired } from "./validation.js";
-import { computeNewlyUnlockedSkins } from "./unlocks.js";
+import { computeNewlyUnlockedSkins, computeNewlyEarnedAchievements } from "./unlocks.js";
 import { writeAuditLog } from "./audit.js";
 
 const VALID_MODES = new Set(["classic", "endless", "level"]);
@@ -120,6 +120,17 @@ async function applyAcceptedResult({ uid, session, submission, flagged }) {
     await profileRef.update({ unlockedSkins: FieldValue.arrayUnion(...newlyUnlockedSkins) });
   }
 
+  // Achievements check against the fully up-to-date state - updatedProfile already
+  // reflects the score/level/lifetimeStats updates from the re-read above; unlockedSkins
+  // needs merging in manually since that update happens after this point, not before it.
+  const newlyEarnedAchievements = computeNewlyEarnedAchievements({
+    ...updatedProfile,
+    unlockedSkins: [...updatedProfile.unlockedSkins, ...newlyUnlockedSkins]
+  });
+  if (newlyEarnedAchievements.length) {
+    await profileRef.update({ achievements: FieldValue.arrayUnion(...newlyEarnedAchievements) });
+  }
+
   let leaderboardUpdated = false;
   if (eligibleForLeaderboard && (session.mode === "classic" || session.mode === "endless")) {
     const entryRef = db.collection("leaderboards").doc(session.mode).collection("entries").doc(uid);
@@ -135,7 +146,7 @@ async function applyAcceptedResult({ uid, session, submission, flagged }) {
     }
   }
 
-  return { newHighScore, newlyUnlockedSkins, leaderboardUpdated };
+  return { newHighScore, newlyUnlockedSkins, newlyEarnedAchievements, leaderboardUpdated };
 }
 
 /**
@@ -191,7 +202,7 @@ export const submitGameResult = onCall(async (request) => {
     return { accepted: false, reason: "We couldn't validate this run, so it was not saved to your cloud profile." };
   }
 
-  const { newHighScore, newlyUnlockedSkins, leaderboardUpdated } = await applyAcceptedResult({
+  const { newHighScore, newlyUnlockedSkins, newlyEarnedAchievements, leaderboardUpdated } = await applyAcceptedResult({
     uid, session, submission: { score, foodCollected, completed }, flagged: validation.flagged
   });
 
@@ -213,6 +224,7 @@ export const submitGameResult = onCall(async (request) => {
     score,
     newHighScore,
     newlyUnlockedSkins,
+    newlyEarnedAchievements,
     leaderboardUpdated
   };
 });

@@ -101,6 +101,7 @@ class SaveStore {
       selectedSkin: profile.selectedSkin ?? "default",
       highScores: profile.highScores ?? { classic: 0, endless: 0, byLevel: {} },
       settings: { ...this.guestData.settings, ...(profile.settings ?? {}) },
+      achievements: profile.achievements ?? [],
       displayName: profile.displayName ?? null,
       photoURL: profile.photoURL ?? null
     };
@@ -159,6 +160,18 @@ class SaveStore {
 
   selectSkin(skinId) {
     this.data.selectedSkin = skinId;
+    this.save();
+  }
+
+  // Achievements are never computed client-side (see achievements.js) - this just caches
+  // whatever the backend already awarded, so the Achievements screen doesn't need a
+  // fresh profile fetch to reflect a run that just earned one.
+  addAchievements(ids) {
+    if (!ids?.length) return;
+    const current = this.data.achievements ?? (this.data.achievements = []);
+    for (const id of ids) {
+      if (!current.includes(id)) current.push(id);
+    }
     this.save();
   }
 

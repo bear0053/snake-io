@@ -1,4 +1,4 @@
-import { SKIN_UNLOCK_RULES, ALL_LEVEL_IDS } from "./gameData.js";
+import { SKIN_UNLOCK_RULES, ALL_LEVEL_IDS, ACHIEVEMENTS } from "./gameData.js";
 
 /**
  * Mirrors storage.js's isSkinUnlocked() condition logic (frontend/js/storage.js), but
@@ -23,4 +23,18 @@ export function computeNewlyUnlockedSkins(profile) {
     }
   }
   return newlyUnlocked;
+}
+
+/**
+ * Same pattern as computeNewlyUnlockedSkins, for achievements. `profile` should reflect
+ * the fully up-to-date state (including this run's score/level/lifetimeStats updates)
+ * for an accurate check.
+ */
+export function computeNewlyEarnedAchievements(profile) {
+  const newlyEarned = [];
+  for (const achievement of ACHIEVEMENTS) {
+    if (profile.achievements.includes(achievement.id)) continue;
+    if (achievement.check(profile)) newlyEarned.push(achievement.id);
+  }
+  return newlyEarned;
 }

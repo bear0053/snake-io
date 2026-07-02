@@ -15,7 +15,7 @@ A modern, multi-level take on the classic Snake game — built with vanilla HTML
 - Six unlockable snake skins, each with a distinct trail effect (see below)
 - Full menu flow: Main Menu, Level Select, Snake Select, High Scores, Settings, How to Play, Pause, Game Over, Level Complete
 - Procedural audio — a distinct musical motif per level/theme (and one for menus), independent music/SFX toggles, and a music volume slider
-- Guest play (local-only progress) or a free account (Google or email/password) for cloud-saved, cross-device progress — see [Cloud Accounts](#cloud-accounts-phase-3) below
+- Guest play (local-only progress) or a free account (Google or email/password) for cloud-saved, cross-device progress, online leaderboards, and achievements — see [Cloud Accounts](#cloud-accounts-phase-3) below
 - Responsive layout for desktop and mobile, with touch controls
 
 ### Levels
@@ -53,9 +53,11 @@ Cloud accounts are backed by Firebase: Authentication, Cloud Firestore, and Clou
 Snake Odyssey supports two ways to play:
 
 - **Guest** — no account needed. Classic and Endless Mode only, with local high scores/settings saved via `localStorage`. Guests can't unlock snakes or enter Level Mode, even if their local stats would otherwise qualify (e.g. a 500+ Endless score) — playing a run that *would* unlock something shows a one-time "create a free account to keep this" message instead.
-- **Signed in** (Google or email/password) — full access: Level Mode, snake unlocks, and cloud-saved progress that follows you across devices. Every authenticated run is validated server-side (Cloud Functions) before it's saved — the client is never trusted to record its own unlocks or high scores.
+- **Signed in** (Google or email/password) — full access: Level Mode, snake unlocks, cloud-saved progress that follows you across devices, a global Classic/Endless leaderboard, and achievements. Every authenticated run is validated server-side (Cloud Functions) before it's saved — the client is never trusted to record its own unlocks, high scores, or achievements.
 
-Signing up for the first time offers to import your guest device's local Classic/Endless high scores and settings (never unlocks or Level Mode progress, which only ever come from validated authenticated play). Signing out preserves your cloud progress and returns to local guest data.
+Signing up for the first time offers to import your guest device's local Classic/Endless high scores and settings (never unlocks, Level Mode progress, or achievements, which only ever come from validated authenticated play). Signing out preserves your cloud progress and returns to local guest data.
+
+Achievements (First Bite, Century Club, First Steps, World Explorer, Snake Collector, Endless Legend, Dedicated) are computed entirely server-side from the cloud profile's lifetime stats and progression — there's no client-side achievement logic to tamper with.
 
 ## Running Locally
 
@@ -101,6 +103,8 @@ frontend/
     auth.js                        Firebase Authentication wiring (sign in/up/out, session state)
     backend.js                      Cloud Functions client wrapper (sessions, submissions, leaderboard, etc.)
     avatars.js                       Preset avatar gallery for email/password sign-up
+    achievements.js                    Achievement display metadata (id/name/description) -
+                                        earning logic is entirely server-side
     ui.js                             Screen population and HUD updates
     resize.js                          Responsive canvas sizing
 backend/              Firebase Cloud Functions, Firestore rules, and cloud backend config - see backend/README.md
@@ -129,10 +133,9 @@ It drives the game the way a player would (clicking through menus, pressing keys
 
 ## Roadmap
 
-Everything in the original Phase 1/2 design spec's core feature list is implemented. Phase 3 (cloud accounts, server-validated progression) is in progress - see `Odyssey-Snake-Phase3v1.rtf` for the full spec. Still to come:
+Everything in the original Phase 1/2 design spec's core feature list is implemented. Phase 3 (cloud accounts, server-validated progression, leaderboards, achievements) is implemented and deployed - see `Odyssey-Snake-Phase3v1.rtf` for the full spec. Still to come:
 
-- Leaderboard UI (backend function is live; frontend screen not built yet)
-- Achievements system
+- Firebase emulators wired into the pytest suite (currently a debug-hook override simulates "authenticated" for UI/gating tests, but doesn't exercise the real backend)
 - Daily challenge mode
 - Multiplayer snake battle
 - Boss levels

@@ -63,6 +63,8 @@
         <button class="btn" data-action="nav-level-select">Level Select</button>
         <button class="btn" data-nav="screen-snake-select">Snake Select</button>
         <button class="btn" data-nav="screen-high-scores">High Scores</button>
+        <button class="btn" data-action="nav-leaderboard">Leaderboard</button>
+        <button class="btn" data-action="nav-achievements">Achievements</button>
         <button class="btn" data-nav="screen-settings">Settings</button>
         <button class="btn" data-nav="screen-how-to-play">How to Play</button>
       </div>
@@ -151,15 +153,37 @@
     </div>
   </div>
 
-  <!-- Level Mode locked (guest) -->
-  <div id="screen-level-locked" class="screen hidden">
+  <!-- Generic locked-feature screen (guest tries Level Mode / Leaderboard / Achievements) -->
+  <div id="screen-feature-locked" class="screen hidden">
     <div class="panel">
-      <h2>Level Mode</h2>
-      <p class="subtitle">Level Mode saves your progress, unlocks new snakes, and tracks achievements. Sign in with a free account to begin your adventure.</p>
+      <h2 id="feature-locked-title">Feature</h2>
+      <p id="feature-locked-message" class="subtitle"></p>
       <div class="menu-buttons">
         <button class="btn btn-primary" data-nav="screen-sign-in">Sign In</button>
         <button class="btn" data-nav="screen-menu">Maybe Later</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard -->
+  <div id="screen-leaderboard" class="screen hidden">
+    <div class="panel">
+      <h2>Leaderboard</h2>
+      <div class="mode-toggle">
+        <button class="btn btn-small" data-action="leaderboard-classic">Classic</button>
+        <button class="btn btn-small" data-action="leaderboard-endless">Endless</button>
+      </div>
+      <div id="leaderboard-list" class="card-list"></div>
+      <button class="btn btn-back" data-nav="screen-menu">Back</button>
+    </div>
+  </div>
+
+  <!-- Achievements -->
+  <div id="screen-achievements" class="screen hidden">
+    <div class="panel">
+      <h2>Achievements</h2>
+      <div id="achievement-list" class="card-list"></div>
+      <button class="btn btn-back" data-nav="screen-menu">Back</button>
     </div>
   </div>
 

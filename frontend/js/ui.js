@@ -4,6 +4,7 @@ import { SaveData } from "./storage.js";
 import { States } from "./state.js";
 import { POWER_UPS } from "./powerups.js";
 import { AVATARS, getAvatar } from "./avatars.js";
+import { ACHIEVEMENTS } from "./achievements.js";
 
 const ALL_LEVEL_IDS = LEVELS.map(l => l.id);
 
@@ -232,6 +233,62 @@ export function clearFormError(elId) {
   const el = document.getElementById(elId);
   el.textContent = "";
   el.classList.add("hidden");
+}
+
+// --- Feature gating (Level Mode / Leaderboard / Achievements for guests) ------------
+
+export function setFeatureLockedContent(title, message) {
+  document.getElementById("feature-locked-title").textContent = title;
+  document.getElementById("feature-locked-message").textContent = message;
+}
+
+// --- Leaderboard -----------------------------------------------------------------
+
+export function setLeaderboardModeActive(mode) {
+  document.querySelector('[data-action="leaderboard-classic"]').classList.toggle("active", mode === "classic");
+  document.querySelector('[data-action="leaderboard-endless"]').classList.toggle("active", mode === "endless");
+}
+
+export function populateLeaderboard(entries, currentUid) {
+  const list = document.getElementById("leaderboard-list");
+  list.innerHTML = "";
+  if (!entries.length) {
+    list.innerHTML = `<div class="card-sub">No scores yet — be the first!</div>`;
+    return;
+  }
+  for (const entry of entries) {
+    const card = document.createElement("div");
+    card.className = "card" + (entry.playerId === currentUid ? " selected" : "");
+    card.innerHTML = `
+      <div class="card-title">#${entry.rank} ${entry.displayName}${entry.playerId === currentUid ? " (you)" : ""}</div>
+      <div class="card-title">${entry.score}</div>
+    `;
+    list.appendChild(card);
+  }
+}
+
+export function showLeaderboardError(message) {
+  document.getElementById("leaderboard-list").innerHTML = `<div class="card-sub">${message}</div>`;
+}
+
+// --- Achievements ------------------------------------------------------------------
+
+export function populateAchievements() {
+  const earned = new Set(SaveData.data.achievements ?? []);
+  const list = document.getElementById("achievement-list");
+  list.innerHTML = "";
+  for (const achievement of ACHIEVEMENTS) {
+    const isEarned = earned.has(achievement.id);
+    const card = document.createElement("div");
+    card.className = "card" + (isEarned ? "" : " locked");
+    card.innerHTML = `
+      <div>
+        <div class="card-title">${isEarned ? "🏆 " : "🔒 "}${achievement.name}</div>
+        <div class="card-sub">${achievement.description}</div>
+      </div>
+    `;
+    list.appendChild(card);
+  }
 }
 
 export function computeStars(level, score) {

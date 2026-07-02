@@ -25,7 +25,8 @@ def test_all_menu_screens_open_and_return(page):
 def test_guest_clicking_level_select_sees_locked_screen(page):
     page.click('[data-action="nav-level-select"]')
     page.wait_for_timeout(150)
-    assert page.is_visible("#screen-level-locked"), "guest should be shown the Level Mode locked screen"
+    assert page.is_visible("#screen-feature-locked"), "guest should be shown the locked-feature screen"
+    assert page.text_content("#feature-locked-title") == "Level Mode"
     assert not page.is_visible("#screen-level-select")
 
     click_visible(page, '[data-nav="screen-menu"]')
@@ -38,11 +39,43 @@ def test_authenticated_player_can_open_level_select(page):
     page.click('[data-action="nav-level-select"]')
     page.wait_for_timeout(150)
     assert page.is_visible("#screen-level-select")
-    assert not page.is_visible("#screen-level-locked")
+    assert not page.is_visible("#screen-feature-locked")
 
     click_visible(page, '[data-nav="screen-menu"]')
     page.wait_for_timeout(150)
     assert page.is_visible("#screen-menu")
+
+
+def test_guest_clicking_leaderboard_sees_locked_screen(page):
+    page.click('[data-action="nav-leaderboard"]')
+    page.wait_for_timeout(150)
+    assert page.is_visible("#screen-feature-locked")
+    assert page.text_content("#feature-locked-title") == "Leaderboard"
+
+    click_visible(page, '[data-nav="screen-menu"]')
+    page.wait_for_timeout(150)
+    assert page.is_visible("#screen-menu")
+
+
+def test_guest_clicking_achievements_sees_locked_screen(page):
+    page.click('[data-action="nav-achievements"]')
+    page.wait_for_timeout(150)
+    assert page.is_visible("#screen-feature-locked")
+    assert page.text_content("#feature-locked-title") == "Achievements"
+
+    click_visible(page, '[data-nav="screen-menu"]')
+    page.wait_for_timeout(150)
+    assert page.is_visible("#screen-menu")
+
+
+def test_authenticated_player_sees_achievements_screen_with_all_locked_on_fresh_profile(page):
+    set_authenticated(page)
+    page.click('[data-action="nav-achievements"]')
+    page.wait_for_timeout(150)
+    assert page.is_visible("#screen-achievements")
+    cards = page.eval_on_selector_all(".card-list .card", "els => els.map(e => e.className)")
+    assert len(cards) > 0
+    assert all("locked" in c for c in cards), "a fresh profile should have no achievements earned yet"
 
 
 def test_play_classic_shows_hud_and_moves_with_keyboard(page):
