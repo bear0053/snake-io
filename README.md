@@ -114,8 +114,11 @@ tests/                How to serve and browser-test this project (Playwright + s
   test_*.py              Test modules by area (navigation, food/power-ups, level mechanics, skins, audio/settings, progression)
 .claude/skills/
   run/                 How to serve/test this project and run the suite (Playwright + system Chrome)
+  run_local/           Start/stop a local server for manual play-testing
   cleanup/             Whole-codebase tech-debt/quality review process
   push/                Commit + push shortcut with safety guardrails
+  deploy_backend/      Deploy backend/ to the live Firebase project, with required confirmation
+  live_smoke_test/     Verify cloud features work against the live (not emulated) backend
 ```
 
 Levels, skins, food types, and power-ups are each a flat data registry consumed by generic engine/render code — adding new content is a data addition, not a rewrite.
