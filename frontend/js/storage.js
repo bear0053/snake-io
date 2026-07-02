@@ -1,4 +1,5 @@
-const STORAGE_KEY = "snakeio_save_v1";
+const GUEST_KEY = "snakeio_save_v1";
+const CLOUD_CACHE_KEY = "snakeio_cloud_cache_v1";
 
 const DEFAULT_SAVE = {
   version: 1,
@@ -40,32 +41,82 @@ function deepMerge(base, override) {
   return base;
 }
 
-function load() {
+function load(key) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return structuredClone(DEFAULT_SAVE);
-    const parsed = JSON.parse(raw);
-    return migrate(parsed);
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw);
   } catch {
-    return structuredClone(DEFAULT_SAVE);
+    return null;
   }
 }
 
-function persist(data) {
+function persist(key, data) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(key, JSON.stringify(data));
   } catch {
     // localStorage unavailable (private mode / quota) - fail silently, game still playable
   }
 }
 
+// Phase 3 source-of-truth split (spec 6.4-6.5): guestData is the trusted store for Guest
+// Players and is never touched by cloud sync. cloudData is a local, non-authoritative
+// cache of the authenticated player's cloud profile - populated on sign-in, cleared on
+// sign-out, and always superseded by the backend on the next fetch. `mode` selects which
+// one `this.data` currently points at, so every existing read/write call site (isGuest
+// aside) works unchanged regardless of which player type is active.
 class SaveStore {
   constructor() {
-    this.data = load();
+    try {
+      this.guestData = migrate(load(GUEST_KEY) ?? {});
+    } catch {
+      this.guestData = structuredClone(DEFAULT_SAVE);
+    }
+    this.cloudData = load(CLOUD_CACHE_KEY);
+    this.mode = "guest";
+  }
+
+  get data() {
+    return this.mode === "cloud" && this.cloudData ? this.cloudData : this.guestData;
+  }
+
+  get isGuest() {
+    return this.mode === "guest";
   }
 
   save() {
-    persist(this.data);
+    if (this.mode === "cloud" && this.cloudData) persist(CLOUD_CACHE_KEY, this.cloudData);
+    else persist(GUEST_KEY, this.guestData);
+  }
+
+  // Called after a successful sign-in once the cloud profile has been fetched (spec
+  // 10.1, 14.4). `profile` only needs to look save-shaped; unrecognized/missing fields
+  // fall back to sane defaults so a partial or test-supplied profile still works.
+  enterCloudMode(profile) {
+    this.mode = "cloud";
+    this.cloudData = {
+      version: 1,
+      unlockedLevels: profile.unlockedLevels ?? [1],
+      unlockedSkins: profile.unlockedSkins ?? ["default"],
+      selectedSkin: profile.selectedSkin ?? "default",
+      highScores: profile.highScores ?? { classic: 0, endless: 0, byLevel: {} },
+      settings: { ...this.guestData.settings, ...(profile.settings ?? {}) },
+      displayName: profile.displayName ?? null,
+      photoURL: profile.photoURL ?? null
+    };
+    this.save();
+  }
+
+  // Spec 10.4: signing out returns to Guest Mode and preserves (never deletes) cloud
+  // progress - guestData was never touched while in cloud mode, so it's already intact.
+  exitCloudMode() {
+    this.mode = "guest";
+    this.cloudData = null;
+    try {
+      localStorage.removeItem(CLOUD_CACHE_KEY);
+    } catch {
+      // ignore - non-fatal, just leaves a stale cache entry
+    }
   }
 
   isLevelUnlocked(levelId) {
@@ -79,8 +130,12 @@ class SaveStore {
     }
   }
 
+  // Guests never get permanent unlocks (Phase 3: unlocks are authenticated-only) -
+  // only the Default Snake is selectable, even if the underlying local stats would
+  // otherwise satisfy an unlock condition (e.g. a 500+ Endless score).
   isSkinUnlocked(skin, allLevelIds) {
     if (skin.unlock.type === "default") return true;
+    if (this.isGuest) return false;
     if (this.data.unlockedSkins.includes(skin.id)) return true;
     if (skin.unlock.type === "complete_level") {
       return this.data.unlockedLevels.includes(skin.unlock.levelId) &&
@@ -145,9 +200,11 @@ class SaveStore {
     this.save();
   }
 
+  // Guest-only: there's no backend "reset my cloud profile" endpoint, so this must never
+  // be called while in cloud mode (callers should guard on isGuest first - see main.js).
   resetProgress() {
-    this.data = structuredClone(DEFAULT_SAVE);
-    this.save();
+    this.guestData = structuredClone(DEFAULT_SAVE);
+    persist(GUEST_KEY, this.guestData);
   }
 }
 

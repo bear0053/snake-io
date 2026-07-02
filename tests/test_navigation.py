@@ -1,5 +1,5 @@
 """Menu flow, basic play, pause/resume, and the wall-death path."""
-from helpers import click_visible
+from helpers import click_visible, set_authenticated
 
 
 def test_menu_loads(page):
@@ -8,7 +8,6 @@ def test_menu_loads(page):
 
 def test_all_menu_screens_open_and_return(page):
     screens = [
-        "screen-level-select",
         "screen-snake-select",
         "screen-high-scores",
         "screen-settings",
@@ -21,6 +20,29 @@ def test_all_menu_screens_open_and_return(page):
         click_visible(page, '[data-nav="screen-menu"]')
         page.wait_for_timeout(150)
         assert page.is_visible("#screen-menu"), f"did not return to menu from {screen_id}"
+
+
+def test_guest_clicking_level_select_sees_locked_screen(page):
+    page.click('[data-action="nav-level-select"]')
+    page.wait_for_timeout(150)
+    assert page.is_visible("#screen-level-locked"), "guest should be shown the Level Mode locked screen"
+    assert not page.is_visible("#screen-level-select")
+
+    click_visible(page, '[data-nav="screen-menu"]')
+    page.wait_for_timeout(150)
+    assert page.is_visible("#screen-menu")
+
+
+def test_authenticated_player_can_open_level_select(page):
+    set_authenticated(page)
+    page.click('[data-action="nav-level-select"]')
+    page.wait_for_timeout(150)
+    assert page.is_visible("#screen-level-select")
+    assert not page.is_visible("#screen-level-locked")
+
+    click_visible(page, '[data-nav="screen-menu"]')
+    page.wait_for_timeout(150)
+    assert page.is_visible("#screen-menu")
 
 
 def test_play_classic_shows_hud_and_moves_with_keyboard(page):

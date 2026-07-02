@@ -35,6 +35,13 @@ def click_visible(page, selector):
     page.click(f".screen:not(.hidden) {selector}")
 
 
+def set_authenticated(page, authenticated=True):
+    """Phase 3: Level Mode and skin unlocks are gated to authenticated players. Forces
+    isGuest() to a fixed value instead of going through real/emulated Firebase auth -
+    see the `run` skill and window.__debug.setGuestOverride in main.js."""
+    page.evaluate("(v) => window.__debug.setGuestOverride(v)", not authenticated)
+
+
 def start_game(page, level_or_mode):
     """level_or_mode: a level id (int), or 'classic' / 'endless'."""
     page.evaluate("(id) => window.__debug.startGame(id)", level_or_mode)

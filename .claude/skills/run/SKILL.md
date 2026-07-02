@@ -44,7 +44,7 @@ with sync_playwright() as p:
 
 ## Precise state inspection: the debug hook
 
-`js/main.js` permanently exposes `window.__debug` — but **only** when served from `localhost`/`127.0.0.1` (see the bottom of that file); it's absent in production (GitHub Pages serves from a different hostname), so there's nothing to add or remove for testing anymore.
+`frontend/js/main.js` permanently exposes `window.__debug` — but **only** when served from `localhost`/`127.0.0.1` (see the bottom of that file); it's absent in production (GitHub Pages serves from a different hostname), so there's nothing to add or remove for testing anymore.
 
 ```js
 window.__debug = { getGame: () => currentGame, startGame, currentMusicTheme, saveData: SaveData, StateMachine, States };

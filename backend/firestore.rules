@@ -1,0 +1,46 @@
+rules_version = '2';
+
+// Deny-by-default (spec Part 4, 31.1): every collection is explicitly closed to direct
+// client writes. All trusted progression, sessions, and leaderboard entries are written
+// exclusively by Cloud Functions using the Admin SDK, which bypasses these rules entirely.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 31.2 - players may read their own profile, never write it directly.
+    match /players/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // 31.4 - sessions are Cloud Functions-only; a player may read their own for debugging.
+    match /gameSessions/{sessionId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.playerId;
+      allow write: if false;
+    }
+
+    // 31.3 - leaderboard entries are readable by any signed-in player, never client-written.
+    match /leaderboards/{mode}/entries/{uid} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // 31.5 - audit logs are backend-only; no client read or write.
+    match /auditLogs/{logId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // 31.6 - public, backend-authored game config (score values, thresholds, etc.);
+    // readable by anyone (including guests, who aren't authenticated at all), never
+    // client-writable.
+    match /gameConfig/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read: if false;
+      allow write: if false;
+    }
+  }
+}

@@ -3,6 +3,7 @@ import { SKINS, unlockDescription } from "./snakes.js";
 import { SaveData } from "./storage.js";
 import { States } from "./state.js";
 import { POWER_UPS } from "./powerups.js";
+import { AVATARS, getAvatar } from "./avatars.js";
 
 const ALL_LEVEL_IDS = LEVELS.map(l => l.id);
 
@@ -57,19 +58,18 @@ export function populateSnakeSelect(onSelect) {
     const selected = SaveData.data.selectedSkin === skin.id;
     const card = document.createElement("div");
     card.className = "card" + (unlocked ? "" : " locked") + (selected ? " selected" : "");
+    const sub = SaveData.isGuest && skin.unlock.type !== "default"
+      ? "Sign in with a free account to unlock"
+      : unlockDescription(skin);
     card.innerHTML = `
       <div class="card-swatch" style="background:${skin.colors.body}"></div>
       <div style="flex:1">
         <div class="card-title">${skin.name}${selected ? " ✓" : ""}</div>
-        <div class="card-sub">${unlockDescription(skin)}</div>
+        <div class="card-sub">${sub}</div>
       </div>
     `;
     if (unlocked) {
-      card.addEventListener("click", () => {
-        SaveData.selectSkin(skin.id);
-        onSelect(skin.id);
-        populateSnakeSelect(onSelect);
-      });
+      card.addEventListener("click", () => onSelect(skin.id));
     }
     list.appendChild(card);
   }
@@ -162,17 +162,76 @@ export function setHudSkinIcon(skin) {
 
 // --- Game Over / Level Complete ------------------------------------------------
 
-export function showGameOverStats({ score, highScore, foodCollected, timeMs }) {
+export function showGameOverStats({ score, highScore, foodCollected, timeMs, cloudNote }) {
   document.getElementById("go-score").textContent = score;
   document.getElementById("go-high-score").textContent = highScore;
   document.getElementById("go-food").textContent = foodCollected;
   document.getElementById("go-time").textContent = `${Math.floor(timeMs / 1000)}s`;
+  const noteEl = document.getElementById("go-cloud-note");
+  noteEl.textContent = cloudNote || "";
+  noteEl.classList.toggle("hidden", !cloudNote);
 }
 
 export function showLevelCompleteStats({ score, stars, unlockMsg }) {
   document.getElementById("lc-score").textContent = score;
   document.getElementById("lc-stars").textContent = "★".repeat(stars) + "☆".repeat(3 - stars);
   document.getElementById("lc-unlock").textContent = unlockMsg;
+}
+
+// --- Account / Auth --------------------------------------------------------------
+
+export function updateAccountBar(user) {
+  const avatarEl = document.getElementById("menu-account-avatar");
+  const labelEl = document.getElementById("menu-account-label");
+  const btnEl = document.getElementById("menu-account-btn");
+
+  if (user) {
+    avatarEl.src = user.photoURL || getAvatar("default").url;
+    avatarEl.classList.remove("hidden");
+    labelEl.textContent = `Signed in as ${user.displayName || user.email || "Player"}`;
+    btnEl.textContent = "Account";
+    btnEl.dataset.nav = "screen-account";
+  } else {
+    avatarEl.classList.add("hidden");
+    labelEl.textContent = "Playing as Guest";
+    btnEl.textContent = "Sign In";
+    btnEl.dataset.nav = "screen-sign-in";
+  }
+}
+
+export function showAccountDetails(user) {
+  document.getElementById("account-avatar").src = user.photoURL || getAvatar("default").url;
+  document.getElementById("account-name").textContent = user.displayName || "Player";
+  document.getElementById("account-email").textContent = user.email || "";
+}
+
+export function populateAvatarPicker(selectedId, onSelect) {
+  const wrap = document.getElementById("avatar-picker");
+  wrap.innerHTML = "";
+  for (const avatar of AVATARS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "avatar-option" + (avatar.id === selectedId ? " selected" : "");
+    btn.dataset.avatarId = avatar.id;
+    btn.innerHTML = `<img src="${avatar.url}" alt="${avatar.id} avatar">`;
+    btn.addEventListener("click", () => {
+      onSelect(avatar.id);
+      populateAvatarPicker(avatar.id, onSelect);
+    });
+    wrap.appendChild(btn);
+  }
+}
+
+export function showFormError(elId, message) {
+  const el = document.getElementById(elId);
+  el.textContent = message;
+  el.classList.remove("hidden");
+}
+
+export function clearFormError(elId) {
+  const el = document.getElementById(elId);
+  el.textContent = "";
+  el.classList.add("hidden");
 }
 
 export function computeStars(level, score) {

@@ -1,5 +1,8 @@
-"""Skin unlock conditions and Odyssey Snake's unique mechanics."""
-from helpers import base_save, click_visible, eval_game, keep_alive, run_in_game, set_save, start_game
+"""Skin unlock conditions and Odyssey Snake's unique mechanics.
+
+Phase 3 gates all non-default skins to authenticated players, so these tests force
+an authenticated state via set_authenticated() - see helpers.py."""
+from helpers import base_save, click_visible, eval_game, keep_alive, run_in_game, set_authenticated, set_save, start_game, wait_until
 
 
 def _card_classes(page):
@@ -21,6 +24,7 @@ def test_fire_snake_unlocks_after_completing_lava_cavern(page):
         highScores={"classic": 0, "endless": 0, "byLevel": {"5": {"score": 300, "stars": 3, "completed": True}}},
     )
     set_save(page, save)
+    set_authenticated(page)
     click_visible(page, '[data-nav="screen-snake-select"]')
     page.wait_for_timeout(150)
     classes = _card_classes(page)
@@ -35,6 +39,7 @@ def test_golden_snake_requires_all_six_levels_completed(page):
         }},
     )
     set_save(page, incomplete)
+    set_authenticated(page)
     click_visible(page, '[data-nav="screen-snake-select"]')
     page.wait_for_timeout(150)
     assert "locked" in _card_classes(page)[4], "Golden Snake should still be locked with only 5/6 levels done"
@@ -46,6 +51,7 @@ def test_golden_snake_requires_all_six_levels_completed(page):
         }},
     )
     set_save(page, complete)
+    set_authenticated(page)
     click_visible(page, '[data-nav="screen-snake-select"]')
     page.wait_for_timeout(150)
     assert "locked" not in _card_classes(page)[4], "Golden Snake should unlock once all 6 levels are completed"
@@ -53,18 +59,28 @@ def test_golden_snake_requires_all_six_levels_completed(page):
 
 def test_odyssey_snake_unlocks_at_endless_score_500(page):
     set_save(page, base_save(highScores={"classic": 0, "endless": 499, "byLevel": {}}))
+    set_authenticated(page)
     click_visible(page, '[data-nav="screen-snake-select"]')
     page.wait_for_timeout(150)
     assert "locked" in _card_classes(page)[5], "Odyssey Snake should be locked below 500"
 
     set_save(page, base_save(highScores={"classic": 0, "endless": 500, "byLevel": {}}))
+    set_authenticated(page)
     click_visible(page, '[data-nav="screen-snake-select"]')
     page.wait_for_timeout(150)
     assert "locked" not in _card_classes(page)[5], "Odyssey Snake should unlock at exactly 500"
 
 
+def test_guest_cannot_unlock_odyssey_snake_at_endless_score_500(page):
+    set_save(page, base_save(highScores={"classic": 0, "endless": 500, "byLevel": {}}))
+    click_visible(page, '[data-nav="screen-snake-select"]')
+    page.wait_for_timeout(150)
+    assert "locked" in _card_classes(page)[5], "Guests should never get a permanent unlock, even past the score threshold"
+
+
 def test_navigators_luck_biases_the_next_non_poison_food(page):
     set_save(page, base_save(unlockedSkins=["default", "odyssey"], selectedSkin="odyssey"))
+    set_authenticated(page)
     start_game(page, "classic")
     page.wait_for_timeout(100)
     keep_alive(page)
@@ -79,16 +95,22 @@ def test_navigators_luck_biases_the_next_non_poison_food(page):
     page.evaluate("() => { Math.random = window.__origRandom; }")
     head = eval_game(page, "g.snake.segments[0]")
     run_in_game(page, "g.foods = []; g.foodSpawnTimer = g.nextFoodSpawnMs;")
-    page.wait_for_timeout(250)
+    # The consuming spawn only fires for a non-poison food type (~85% of spawns), and each
+    # respawn cycle re-rolls the type for real (Math.random was restored above) - poll
+    # rather than assume the very first spawn is the one that consumes the pending flag.
+    assert wait_until(page, "g.navigatorsLuckPending === false", timeout_ms=10000), "luck flag was not consumed"
 
-    food = eval_game(page, "g.foods[0]")
-    assert eval_game(page, "g.navigatorsLuckPending") is False, "luck flag was not consumed"
+    # The most recently spawned food is the one whose spawn just consumed the pending
+    # flag (consumption and push happen atomically in the same spawnFood() call) - earlier
+    # entries may be unrelated poison spawns that didn't consume it.
+    food = eval_game(page, "g.foods.at(-1)")
     dist = max(abs(food["x"] - head["x"]), abs(food["y"] - head["y"]))
     assert dist <= 5, f"food did not spawn within Navigator's Luck radius (dist={dist})"
 
 
 def test_odyssey_food_pickup_triggers_golden_flash(page):
     set_save(page, base_save(unlockedSkins=["default", "odyssey"], selectedSkin="odyssey"))
+    set_authenticated(page)
     start_game(page, "classic")
     page.wait_for_timeout(100)
     run_in_game(page, """

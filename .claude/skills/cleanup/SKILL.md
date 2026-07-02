@@ -9,11 +9,11 @@ This project was built in fast iterative passes (Phase 1 vertical slice, Phase 2
 
 ## Process
 
-1. **Scope**: If there are uncommitted changes (`git diff` non-empty), that's the primary review target — you can lean on the built-in `simplify` skill for that pass (reuse/simplification/efficiency on a diff). If the tree is clean, this is a **whole-codebase** health pass over `js/` instead — read every file (they're all small, this is cheap) rather than relying on a diff.
+1. **Scope**: If there are uncommitted changes (`git diff` non-empty), that's the primary review target — you can lean on the built-in `simplify` skill for that pass (reuse/simplification/efficiency on a diff). If the tree is clean, this is a **whole-codebase** health pass over `frontend/js/` instead — read every file (they're all small, this is cheap) rather than relying on a diff.
 2. Check specifically for:
    - **Dead code**: unused exports, functions never imported anywhere, unreachable branches, comments referencing mechanics that were since removed or renamed.
    - **Duplication across the registry system**: `render.js`'s per-theme obstacle/food drawing functions, `levels.js`'s per-level objects, and `powerups.js`'s registry entries are the most likely places copy-paste drift creeps in as new levels/skins/power-ups get added — look for near-identical blocks that should be parameterized instead of repeated.
-   - **Leftover debug/test scaffolding**: `window.__debug` is a permanent, hostname-gated hook in `js/main.js` (see the `run` skill) — that one's intentional, don't remove it. Grep for stray `console.log` or other one-off instrumentation added during a debugging session instead.
+   - **Leftover debug/test scaffolding**: `window.__debug` is a permanent, hostname-gated hook in `frontend/js/main.js` (see the `run` skill) — that one's intentional, don't remove it. Grep for stray `console.log` or other one-off instrumentation added during a debugging session instead.
    - **Inefficiency in the render/tick loop**: anything recomputed every frame that could be cached (gradients, lookups), redundant array scans in `engine.js`'s per-tick collision/pickup/lifecycle checks, or `occupiedCells()` being rebuilt more often than necessary.
    - **Inconsistent conventions**: naming drift between the Phase 1 food/power-up system and the Phase 2 additions (key/exit/portals/lasers), inconsistent use of `game.level.mechanics.*` flags, HUD/UI string formatting inconsistencies.
    - **Schema drift**: every level object in `levels.js` should share the same shape (a `mechanics` object with all flags present via `BASE_MECHANICS`, `foodTypes`, `obstacles`, `starThresholds`, etc.) — flag any level missing a field the others have.

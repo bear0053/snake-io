@@ -15,7 +15,7 @@ A modern, multi-level take on the classic Snake game — built with vanilla HTML
 - Six unlockable snake skins, each with a distinct trail effect (see below)
 - Full menu flow: Main Menu, Level Select, Snake Select, High Scores, Settings, How to Play, Pause, Game Over, Level Complete
 - Procedural audio — a distinct musical motif per level/theme (and one for menus), independent music/SFX toggles, and a music volume slider
-- Progress, high scores, unlocks, and settings saved via `localStorage`
+- Guest play (local-only progress) or a free account (Google or email/password) for cloud-saved, cross-device progress — see [Cloud Accounts](#cloud-accounts-phase-3) below
 - Responsive layout for desktop and mobile, with touch controls
 
 ### Levels
@@ -44,7 +44,18 @@ The key on Cyber Grid (and any future key-based level) doesn't sit on the board 
 
 ## Tech Stack
 
-Plain HTML5 Canvas + CSS3 + JavaScript (ES modules) — no frameworks, no bundler, no npm install. All artwork is drawn procedurally on `<canvas>` and all audio is synthesized with the Web Audio API, so the game runs entirely from static files.
+Plain HTML5 Canvas + CSS3 + JavaScript (ES modules) — no frameworks, no bundler, no npm install for the frontend. All artwork is drawn procedurally on `<canvas>` and all audio is synthesized with the Web Audio API, so the game itself runs entirely from static files on GitHub Pages.
+
+Cloud accounts are backed by Firebase: Authentication, Cloud Firestore, and Cloud Functions (see `backend/`) — the frontend loads the Firebase SDK from a CDN at runtime, so there's still no local build step for the game.
+
+## Cloud Accounts (Phase 3)
+
+Snake Odyssey supports two ways to play:
+
+- **Guest** — no account needed. Classic and Endless Mode only, with local high scores/settings saved via `localStorage`. Guests can't unlock snakes or enter Level Mode, even if their local stats would otherwise qualify (e.g. a 500+ Endless score) — playing a run that *would* unlock something shows a one-time "create a free account to keep this" message instead.
+- **Signed in** (Google or email/password) — full access: Level Mode, snake unlocks, and cloud-saved progress that follows you across devices. Every authenticated run is validated server-side (Cloud Functions) before it's saved — the client is never trusted to record its own unlocks or high scores.
+
+Signing up for the first time offers to import your guest device's local Classic/Endless high scores and settings (never unlocks or Level Mode progress, which only ever come from validated authenticated play). Signing out preserves your cloud progress and returns to local guest data.
 
 ## Running Locally
 
@@ -69,24 +80,30 @@ Then open `http://localhost:8000` in your browser.
 ## Project Structure
 
 ```
-index.html          Page shell: canvas, HUD, and all menu/screen overlays
-styles.css           Layout, HUD, D-pad, and responsive styling
-js/
-  main.js            App entry point — boot, navigation, event wiring, music-theme syncing
-  state.js            Finite state machine for menu/game screens
-  engine.js            Fixed-timestep game loop, movement, spawn/expiry cycles, tick logic
-  entities.js          Snake, food, power-up, and obstacle data models
-  levels.js             Level registry (all 6 levels), Classic/Endless pseudo-levels, difficulty scaling
-  snakes.js             Snake skin registry and unlock conditions
-  foods.js               Food type registry
-  powerups.js             Power-up registry and active-effect handling
-  collision.js             Wall / self / obstacle collision detection
-  render.js                 Canvas drawing, per-theme visuals, cached backgrounds
-  input.js                   Keyboard, swipe, and D-pad input handling
-  audio.js                    Procedural SFX and per-theme music
-  storage.js                   localStorage save/load for progress and settings
-  ui.js                         Screen population and HUD updates
-  resize.js                      Responsive canvas sizing
+index.html          Page shell: canvas, HUD, and all menu/screen overlays (frontend deploy entry point)
+frontend/
+  styles.css           Layout, HUD, D-pad, and responsive styling
+  js/
+    main.js            App entry point — boot, navigation, event wiring, music-theme syncing
+    state.js            Finite state machine for menu/game screens
+    engine.js            Fixed-timestep game loop, movement, spawn/expiry cycles, tick logic
+    entities.js          Snake, food, power-up, and obstacle data models
+    levels.js             Level registry (all 6 levels), Classic/Endless pseudo-levels, difficulty scaling
+    snakes.js             Snake skin registry and unlock conditions
+    foods.js               Food type registry
+    powerups.js             Power-up registry and active-effect handling
+    collision.js             Wall / self / obstacle collision detection
+    render.js                 Canvas drawing, per-theme visuals, cached backgrounds
+    input.js                   Keyboard, swipe, and D-pad input handling
+    audio.js                    Procedural SFX and per-theme music
+    storage.js                   Guest localStorage + cached cloud-profile save/load (see Cloud Accounts above)
+    firebase-config.js            Public Firebase web app config
+    auth.js                        Firebase Authentication wiring (sign in/up/out, session state)
+    backend.js                      Cloud Functions client wrapper (sessions, submissions, leaderboard, etc.)
+    avatars.js                       Preset avatar gallery for email/password sign-up
+    ui.js                             Screen population and HUD updates
+    resize.js                          Responsive canvas sizing
+backend/              Firebase Cloud Functions, Firestore rules, and cloud backend config - see backend/README.md
 tests/                How to serve and browser-test this project (Playwright + system Chrome)
   conftest.py          Shared fixtures: dev server, browser, and a fresh page per test
   helpers.py            Save-data builders and debug-hook helpers (see Testing, below)
@@ -108,17 +125,16 @@ pip install pytest playwright   # one-time; do NOT run `playwright install` (see
 pytest tests/
 ```
 
-It drives the game the way a player would (clicking through menus, pressing keys) plus, for assertions that need exact game state, a small debug hook (`window.__debug`) that `js/main.js` exposes *only* when served from `localhost`/`127.0.0.1` — it's absent in production. The suite starts its own dev server, so `pytest tests/` works standalone.
+It drives the game the way a player would (clicking through menus, pressing keys) plus, for assertions that need exact game state, a small debug hook (`window.__debug`) that `frontend/js/main.js` exposes *only* when served from `localhost`/`127.0.0.1` — it's absent in production. The suite starts its own dev server, so `pytest tests/` works standalone. Tests that need an "authenticated" player use `window.__debug.setGuestOverride()` (see `tests/helpers.py:set_authenticated`) rather than signing into real Firebase - it's a local override, not a substitute for testing the backend itself (see `backend/README.md` for Cloud Functions emulator testing).
 
 ## Roadmap
 
-Everything in the original design spec's core feature list is implemented. Ideas noted as optional future enhancements:
+Everything in the original Phase 1/2 design spec's core feature list is implemented. Phase 3 (cloud accounts, server-validated progression) is in progress - see `Odyssey-Snake-Phase3v1.rtf` for the full spec. Still to come:
 
-- Online leaderboard
+- Leaderboard UI (backend function is live; frontend screen not built yet)
+- Achievements system
 - Daily challenge mode
 - Multiplayer snake battle
 - Boss levels
 - Coins/shop system
-- Achievements
-- User accounts
 - Progressive Web App install support
