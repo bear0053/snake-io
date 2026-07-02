@@ -155,19 +155,17 @@ function recordAndShowLevelComplete(game, cloudNote) {
     foodCollected: game.foodCollected,
     completed: true
   });
-  let unlockMsg = cloudNote ?? "-";
   const next = nextLevelOf(currentLevelId);
-  if (!cloudNote) {
-    if (next && !SaveData.isLevelUnlocked(next.id)) {
-      SaveData.unlockLevel(next.id);
-      unlockMsg = `${next.name} unlocked!`;
-    } else if (next) {
-      unlockMsg = "Level replayed";
-    } else {
-      unlockMsg = "All levels complete!";
-    }
+  let levelUnlockMsg;
+  if (next && !SaveData.isLevelUnlocked(next.id)) {
+    SaveData.unlockLevel(next.id);
+    levelUnlockMsg = `${next.name} unlocked!`;
+  } else if (next) {
+    levelUnlockMsg = "Level replayed";
+  } else {
+    levelUnlockMsg = "All levels complete!";
   }
-  showLevelCompleteStats({ score: game.score, stars, unlockMsg });
+  showLevelCompleteStats({ score: game.score, stars, unlockMsg: cloudNote ?? levelUnlockMsg });
   StateMachine.setState(States.LEVEL_COMPLETE);
 }
 
